@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'signup_name.dart';
+import 'signup_welcome.dart';
 
 void main() {
   runApp(const MyApp());
@@ -25,9 +25,9 @@ class MainScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background image with 20% opacity
+          // Background image with 50% opacity
           Opacity(
-            opacity: 0.2,
+            opacity: 0.5,
             child: Container(
               decoration: const BoxDecoration(
                 image: DecorationImage(
@@ -71,7 +71,7 @@ class MainScreen extends StatelessWidget {
                         // Navigate to the Signup screen
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => SignupName()),
+                          MaterialPageRoute(builder: (context) => SignupWelcome()),
                         );
                       },
                       child: const Text(
