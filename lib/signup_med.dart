@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
 import 'signup_goal.dart';
 
-class SignupMed extends StatelessWidget {
-  const SignupMed({super.key});
+class SignupMed extends StatefulWidget {
+  final String name;
+  final String location;
+  final String gender;
+  final int age;
+  final double weight;
+  final double height;
+
+  const SignupMed({
+    super.key, 
+    required this.name, 
+    required this.location,
+    required this.gender,
+    required this.age,
+    required this.weight,
+    required this.height,
+    });
+
+  @override
+  SignupMedState createState() => SignupMedState();
+}
+
+class SignupMedState extends State<SignupMed> {
+  final _preExistingController = TextEditingController(); // Controller for the pre-existing conditions field
+  final _allergiesController = TextEditingController(); // Controller for the allergies field
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +78,12 @@ class SignupMed extends StatelessWidget {
 
             // Text field
             TextField(
+              controller: _preExistingController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: "If yes, Please list them:",
               ),
+              keyboardType: TextInputType.text,
             ),
             const SizedBox(height: 25),
 
@@ -71,10 +96,12 @@ class SignupMed extends StatelessWidget {
 
             // Text field
             TextField(
+              controller: _allergiesController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: "If yes, Please list them:",
               ),
+              keyboardType: TextInputType.text,
             ),
             const SizedBox(height: 25),
 
@@ -105,7 +132,18 @@ class SignupMed extends StatelessWidget {
                     /// Navigate to the SignupYou2 screen
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => SignupGoal()),
+                      MaterialPageRoute(
+                        builder: (context) => SignupGoal(
+                          name: widget.name,
+                          location: widget.location,
+                          gender: widget.gender,
+                          age: widget.age,
+                          weight: widget.weight,
+                          height: widget.height,
+                          preExisting: _preExistingController.text,
+                          allergies: _allergiesController.text,
+                        )
+                      ),
                     );
                   },
                   child: Text(
