@@ -1,8 +1,25 @@
 import 'package:flutter/material.dart';
 import 'signup_med.dart';
 
-class SignupYou extends StatelessWidget {
-  const SignupYou({super.key});
+class SignupYou extends StatefulWidget {
+  final String name;
+  final String location;
+
+  const SignupYou({
+    super.key, 
+    required this.name, 
+    required this.location,
+  });
+
+  @override
+  SignupYouState createState() => SignupYouState();
+}
+
+class SignupYouState extends State<SignupYou>{
+  String? _selectedGender; // To store the selected gender
+  final _ageController = TextEditingController(); // Controller for the age field
+  final _weightController = TextEditingController(); // Controller for the age field
+  final _heightController = TextEditingController(); // Controller for the age field
 
   @override
   Widget build(BuildContext context) {
@@ -59,14 +76,18 @@ class SignupYou extends StatelessWidget {
                 // Male Button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 162, 191, 223),
+                    backgroundColor: _selectedGender == "Male"
+                        ? Colors.blue // Highlight if selected
+                      : const Color.fromARGB(255, 162, 191, 223),
                     padding: EdgeInsets.symmetric(horizontal: 65, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   onPressed: () {
-                    // Handle Next button action
+                    setState((){
+                      _selectedGender = 'Male';
+                    });
                   },
                   child: Text(
                     "Male",
@@ -76,14 +97,18 @@ class SignupYou extends StatelessWidget {
                 // Female button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 253, 199, 199),
+                    backgroundColor: _selectedGender == "Female"
+                        ? Colors.pink // Highlight if selected
+                        : const Color.fromARGB(255, 253, 199, 199),
                     padding: EdgeInsets.symmetric(horizontal: 65, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   onPressed: () {
-                    // Handle Next button action
+                    setState(() {
+                      _selectedGender = 'Female';
+                    });
                   },
                   child: Text(
                     "Female",
@@ -103,10 +128,12 @@ class SignupYou extends StatelessWidget {
 
             // Text field
             TextField(
+              controller: _ageController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: "Enter your age",
               ),
+              keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 25),
 
@@ -119,10 +146,12 @@ class SignupYou extends StatelessWidget {
 
             // Text field
             TextField(
+              controller: _heightController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                hintText: "Enter your height",
+                hintText: "Enter your height (cm)",
               ),
+              keyboardType: TextInputType.number,
             ),
              const SizedBox(height: 25),
 
@@ -135,10 +164,12 @@ class SignupYou extends StatelessWidget {
 
             // Text field
             TextField(
+              controller: _weightController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: "Enter your weight",
               ),
+              keyboardType: TextInputType.number,
             ),
 
             const Spacer(),
@@ -164,10 +195,45 @@ class SignupYou extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // Navigate to the SignupYou2 screen
+                    // Validate inputs
+                    if (_selectedGender == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select your gender')),
+                      );
+                      return;
+                    }
+                    if (_ageController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please enter your age')),
+                      );
+                      return;
+                    }
+                    if (_heightController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please enter your height')),
+                      );
+                      return;
+                    }
+                    if (_weightController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please enter your weight')),
+                      );
+                      return;
+                    }
+
+                    // Navigate to the SignupMed screen with the collected data
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => SignupMed()),
+                      MaterialPageRoute(
+                        builder: (context) => SignupMed(
+                          name: widget.name,
+                          location: widget.location,
+                          gender: _selectedGender!,
+                          age: int.parse(_ageController.text),
+                          height: double.parse(_heightController.text),
+                          weight: double.parse(_weightController.text),
+                        ),
+                      ),
                     );
                   },
                   child: Text(

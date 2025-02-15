@@ -13,6 +13,8 @@ class SignupWelcome extends StatefulWidget {
 class SignupNameState extends State<SignupWelcome> {
   String? _selectedCountry;
   List<String> countries = [];
+  final _nameController = TextEditingController(); // Controller for the name field
+  bool _isLoading = true; // Track loading state for countries
 
   @override
   void initState() {
@@ -22,26 +24,38 @@ class SignupNameState extends State<SignupWelcome> {
 
   // Fetch country data from the REST API
   Future<void> _fetchCountries() async {
-    final response = await http.get(Uri.parse('https://restcountries.com/v3.1/all'));
-    
-    if (response.statusCode == 200) {
-      // If the server returns a 200 OK response, parse the JSON data
-      final List<dynamic> countryList = json.decode(response.body);
-      
-      // Extract country names from the response
-      List<String> countryNames = [];
-      for (var country in countryList) {
-        // Check if the country has a name field (to avoid errors)
-        if (country['name'] != null && country['name']['common'] != null) {
-          countryNames.add(country['name']['common']);
-        }
-      }
+    try {
+      final response = await http.get(Uri.parse('https://restcountries.com/v3.1/all'));
 
-      setState(() {
-        countries = countryNames;  // Update the state with the list of countries
-      });
-    } else {
-      throw Exception('Failed to load countries');
+      if (response.statusCode == 200) {
+        final List<dynamic> countryList = json.decode(response.body);
+        List<String> countryNames = [];
+        for (var country in countryList) {
+          if (country['name'] != null && country['name']['common'] != null) {
+            countryNames.add(country['name']['common']);
+          }
+        }
+
+        // Check if the widget is still mounted before updating the state
+        if (mounted) {
+          setState(() {
+            countries = countryNames;
+            _isLoading = false;
+          });
+        }
+      } else {
+        throw Exception('Failed to load countries');
+      }
+    } catch (e) {
+      // Check if the widget is still mounted before showing the error
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching countries: $e')),
+        );
+      }
     }
   }
 
@@ -94,8 +108,9 @@ class SignupNameState extends State<SignupWelcome> {
             ),
             const SizedBox(height: 10),
 
-            // Text field
+            // Text field for name
             TextField(
+              controller: _nameController,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: "Enter your preferred name",
@@ -116,8 +131,8 @@ class SignupNameState extends State<SignupWelcome> {
                 border: Border.all(color: Colors.grey), // Adds border around the dropdown
                 borderRadius: BorderRadius.circular(8), // Optional: rounds the corners
               ),
-              child: countries.isEmpty
-                  ? CircularProgressIndicator() // Show loading indicator while data is being fetched
+              child: _isLoading
+                  ? Center(child: CircularProgressIndicator()) // Show loading indicator while data is being fetched
                   : DropdownButton<String>(
                       value: _selectedCountry,
                       hint: Text("Select your country"),
@@ -163,10 +178,29 @@ class SignupNameState extends State<SignupWelcome> {
                     ),
                   ),
                   onPressed: () {
-                    // Navigate to the Signup screen
+                    // Validate inputs
+                    if (_nameController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please enter your name')),
+                      );
+                      return;
+                    }
+                    if (_selectedCountry == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select your country')),
+                      );
+                      return;
+                    }
+
+                    // Navigate to the SignupYou screen with the collected data
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => SignupYou()),
+                      MaterialPageRoute(
+                        builder: (context) => SignupYou(
+                          name: _nameController.text,
+                          location: _selectedCountry!,
+                        ),
+                      ),
                     );
                   },
                   child: Text(

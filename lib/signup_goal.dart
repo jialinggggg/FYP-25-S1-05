@@ -1,8 +1,35 @@
 import 'package:flutter/material.dart';
 import 'signup_target.dart';
 
-class SignupGoal extends StatelessWidget {
-  const SignupGoal({super.key});
+class SignupGoal extends StatefulWidget {
+
+  final String name;
+  final String location;
+  final String gender;
+  final int age;
+  final double weight;
+  final double height;
+  final String preExisting;
+  final String allergies;
+
+  const SignupGoal({
+    super.key, 
+    required this.name, 
+    required this.location,
+    required this.gender,
+    required this.age,
+    required this.weight,
+    required this.height,
+    required this.preExisting,
+    required this.allergies,
+    });
+
+  @override
+  SignupGoalState createState() => SignupGoalState();
+}
+
+class SignupGoalState extends State<SignupGoal> {
+  String? _selectedGoal; // To store the selected goal
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +86,9 @@ class SignupGoal extends StatelessWidget {
               children: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 183, 186, 191),
+                    backgroundColor: _selectedGoal == "Lose Weight"
+                      ? const Color.fromARGB(255, 104, 103, 103) // Highlight the selected button
+                      : const Color.fromARGB(255, 183, 186, 191),
                     padding: EdgeInsets.symmetric(horizontal: 140, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -67,6 +96,9 @@ class SignupGoal extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Handle "Lose Weight" selection
+                    setState(() {
+                      _selectedGoal = "Lose Weight";
+                    }); 
                   },
                   child: Text(
                     "Lose Weight",
@@ -76,7 +108,9 @@ class SignupGoal extends StatelessWidget {
                 const SizedBox(height: 10),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 183, 186, 191),
+                    backgroundColor: _selectedGoal == "Gain Weight"
+                      ? const Color.fromARGB(255, 104, 103, 103) // Highlight the selected button
+                      : const Color.fromARGB(255, 183, 186, 191),
                     padding: EdgeInsets.symmetric(horizontal: 140, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -84,6 +118,9 @@ class SignupGoal extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Handle "Gain Weight" selection
+                    setState(() {
+                      _selectedGoal = "Gain Weight";
+                    });
                   },
                   child: Text(
                     "Gain Weight",
@@ -93,7 +130,9 @@ class SignupGoal extends StatelessWidget {
                 const SizedBox(height: 10),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 183, 186, 191),
+                    backgroundColor: _selectedGoal == "Maintain Weight"
+                      ? const Color.fromARGB(255, 104, 103, 103) // Highlight the selected button
+                      :const Color.fromARGB(255, 183, 186, 191),
                     padding: EdgeInsets.symmetric(horizontal: 125, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -101,6 +140,9 @@ class SignupGoal extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Handle "Maintain Weight" selection
+                    setState(() {
+                      _selectedGoal = "Maintain Weight";
+                    });
                   },
                   child: Text(
                     "Maintain Weight",
@@ -110,7 +152,9 @@ class SignupGoal extends StatelessWidget {
                 const SizedBox(height: 10),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 183, 186, 191),
+                    backgroundColor: _selectedGoal == "Gain Muscle"
+                      ? const Color.fromARGB(255, 104, 103, 103) // Highlight the selected button
+                      : const Color.fromARGB(255, 183, 186, 191),
                     padding: EdgeInsets.symmetric(horizontal: 140, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -118,6 +162,9 @@ class SignupGoal extends StatelessWidget {
                   ),
                   onPressed: () {
                     // Handle "Gain Muscle" selection
+                    setState(() {
+                      _selectedGoal = "Gain Muscle";
+                    });
                   },
                   child: Text(
                     "Gain Muscle",
@@ -153,7 +200,18 @@ class SignupGoal extends StatelessWidget {
                     // Navigate to the SignupYou2 screen
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => SignupTarget()),
+                      MaterialPageRoute(
+                        builder: (context) => SignupTarget(
+                          name: widget.name,
+                          location: widget.location,
+                          gender: widget.gender,
+                          age: widget.age,
+                          weight: widget.weight,
+                          height: widget.height,
+                          preExisting: widget.preExisting,
+                          allergies: widget.allergies,
+                          goal: _selectedGoal!,
+                        )),
                     );
                   },
                   child: Text(
