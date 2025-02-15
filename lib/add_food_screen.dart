@@ -273,5 +273,3 @@ class AddFoodScreenState extends State<AddFoodScreen> {
     );
   }
 }
-
-///
