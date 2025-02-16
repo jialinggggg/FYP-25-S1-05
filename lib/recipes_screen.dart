@@ -4,6 +4,7 @@ import 'add_recipe.dart';
 import 'recipe_detail.dart';
 import 'orders_screen.dart';
 import "favourites_screen.dart";
+import 'my_recipes.dart';
 
 class RecipesScreen extends StatefulWidget {
   const RecipesScreen({super.key});
@@ -37,6 +38,7 @@ class RecipesScreenState extends State<RecipesScreen> {
 
   int _selectedTab = 0; // 0: Discover, 1: Favourites, 2: My Recipes
   List<Map<String, dynamic>> favouriteRecipes = []; // Stores Favourite Recipes
+  List<Map<String, dynamic>> myRecipes = []; // ✅ Stores Only User-Added Recipes
 
   void _addToFavourites(Map<String, dynamic> recipe) {
     setState(() {
@@ -56,8 +58,7 @@ class RecipesScreenState extends State<RecipesScreen> {
 
     if (newRecipe != null) {
       setState(() {
-        allRecipes.add(newRecipe);
-        filteredRecipes = List.from(allRecipes);
+        myRecipes.add(newRecipe); // ✅ Store Only New User-Added Recipes
       });
     }
   }
@@ -280,14 +281,22 @@ class RecipesScreenState extends State<RecipesScreen> {
   Widget _buildCategoryButton(String title, int index) {
     return ElevatedButton(
       onPressed: () {
-        if (index == 1) { // If Favourites button is clicked
+        if (index == 1) { // ✅ Favourites Button
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => FavouritesScreen(
                 favouriteRecipes: favouriteRecipes,
-                onFavourite: _addToFavourites, // ✅ Fix: Pass onFavourite
-                ///isFavourite: favouriteRecipes.contains(recipe),
+                onFavourite: _addToFavourites,
+              ),
+            ),
+          );
+        } else if (index == 2) { // ✅ "My Recipes" Button (Only New Recipes)
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MyRecipesScreen(
+                myRecipes: myRecipes, // ✅ Pass only user-added recipes
               ),
             ),
           );

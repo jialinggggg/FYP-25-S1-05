@@ -66,7 +66,7 @@ class AddRecipeScreenState extends State<AddRecipeScreen> {
 
   /// ✅ **Save Recipe**
   void _saveRecipe() {
-    if (_nameController.text.isEmpty || _selectedImage == null) {
+    if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please add a name and an image for the recipe!")),
       );
@@ -81,12 +81,12 @@ class AddRecipeScreenState extends State<AddRecipeScreen> {
       "description": _descriptionController.text,
       "calories": _caloriesController.text,
       "time": _timeController.text,
-      "image": _selectedImage,
+      "image": _selectedImage ?? "assets/default_image.png", // ✅ Default image if none is selected
       "ingredients": ingredients,
       "instructions": instructions,
     };
 
-    Navigator.pop(context, newRecipe);
+    Navigator.pop(context, newRecipe); // ✅ Passes new recipe back to RecipesScreen
   }
 
   @override

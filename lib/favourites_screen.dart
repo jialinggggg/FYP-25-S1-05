@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'recipe_detail.dart';
 import 'recipes_screen.dart';
+import "main_log_screen.dart";
+import 'my_recipes.dart';
 
 class FavouritesScreen extends StatefulWidget {
   final List<Map<String, dynamic>> favouriteRecipes;
@@ -48,6 +50,13 @@ class FavouritesScreenState extends State<FavouritesScreen> {
             context,
             MaterialPageRoute(builder: (context) => const RecipesScreen()),
           );
+        } else if (index == 2) { // ✅ Navigate to My Recipes Screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MyRecipesScreen(myRecipes: widget.favouriteRecipes),
+            ),
+          );
         }
       },
       style: ElevatedButton.styleFrom(
@@ -78,6 +87,12 @@ class FavouritesScreenState extends State<FavouritesScreen> {
         break;
       case 1:
       // Stay on Favourites Screen
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MainLogScreen()), // ✅ Go to Log Screen
+        );
         break;
     }
   }
