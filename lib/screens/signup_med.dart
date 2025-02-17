@@ -17,7 +17,7 @@ class SignupMed extends StatefulWidget {
     required this.age,
     required this.weight,
     required this.height,
-    });
+  });
 
   @override
   SignupMedState createState() => SignupMedState();
@@ -26,6 +26,9 @@ class SignupMed extends StatefulWidget {
 class SignupMedState extends State<SignupMed> {
   final _preExistingController = TextEditingController(); // Controller for the pre-existing conditions field
   final _allergiesController = TextEditingController(); // Controller for the allergies field
+
+  String? _preExistingDropdownValue; // Dropdown value for pre-existing conditions
+  String? _allergiesDropdownValue; // Dropdown value for allergies
 
   @override
   Widget build(BuildContext context) {
@@ -76,15 +79,35 @@ class SignupMedState extends State<SignupMed> {
             ),
             const SizedBox(height: 10),
 
-            // Text field
-            TextField(
-              controller: _preExistingController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "If yes, Please list them:",
-              ),
-              keyboardType: TextInputType.text,
+            // Dropdown for pre-existing conditions
+            DropdownButton<String>(
+              value: _preExistingDropdownValue,
+              hint: Text("Select an option"),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _preExistingDropdownValue = newValue;
+                });
+              },
+              items: <String>['No', 'Yes']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
             ),
+            const SizedBox(height: 10),
+
+            // Show text box if "Yes" is selected for pre-existing conditions
+            if (_preExistingDropdownValue == 'Yes')
+              TextField(
+                controller: _preExistingController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Please list your pre-existing conditions:",
+                ),
+                keyboardType: TextInputType.text,
+              ),
             const SizedBox(height: 25),
 
             // allergies label
@@ -94,18 +117,37 @@ class SignupMedState extends State<SignupMed> {
             ),
             const SizedBox(height: 10),
 
-            // Text field
-            TextField(
-              controller: _allergiesController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "If yes, Please list them:",
-              ),
-              keyboardType: TextInputType.text,
+            // Dropdown for allergies
+            DropdownButton<String>(
+              value: _allergiesDropdownValue,
+              hint: Text("Select an option"),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _allergiesDropdownValue = newValue;
+                });
+              },
+              items: <String>['No', 'Yes']
+                  .map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
             ),
+            const SizedBox(height: 10),
+
+            // Show text box if "Yes" is selected for allergies
+            if (_allergiesDropdownValue == 'Yes')
+              TextField(
+                controller: _allergiesController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: "Please list your allergies:",
+                ),
+                keyboardType: TextInputType.text,
+              ),
             const SizedBox(height: 25),
 
-            
             const Spacer(),
 
             // Back and Next buttons
@@ -129,7 +171,7 @@ class SignupMedState extends State<SignupMed> {
                     ),
                   ),
                   onPressed: () {
-                    /// Navigate to the SignupYou2 screen
+                    /// Navigate to the SignupGoal screen
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -140,8 +182,8 @@ class SignupMedState extends State<SignupMed> {
                           age: widget.age,
                           weight: widget.weight,
                           height: widget.height,
-                          preExisting: _preExistingController.text,
-                          allergies: _allergiesController.text,
+                          preExisting: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : "No",
+                          allergies: _allergiesDropdownValue == 'Yes' ? _allergiesController.text : "No",
                         )
                       ),
                     );

@@ -1,7 +1,9 @@
+// lib/screens/signup_welcome.dart
 import 'package:flutter/material.dart';
-import 'signup_you.dart'; // Make sure to import this correctly
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:dropdown_search/dropdown_search.dart'; // Import the package
+import '../services/country_service.dart'; // Import the CountryService
+import '../utils/input_validator.dart'; // Import the InputValidator
+import 'signup_you.dart'; // Import the next page
 
 class SignupWelcome extends StatefulWidget {
   const SignupWelcome({super.key});
@@ -15,6 +17,7 @@ class SignupNameState extends State<SignupWelcome> {
   List<String> countries = [];
   final _nameController = TextEditingController(); // Controller for the name field
   bool _isLoading = true; // Track loading state for countries
+  final CountryService _countryService = CountryService(); // Create an instance of CountryService
 
   @override
   void initState() {
@@ -22,32 +25,17 @@ class SignupNameState extends State<SignupWelcome> {
     _fetchCountries();
   }
 
-  // Fetch country data from the REST API
+  // Fetch country data using CountryService
   Future<void> _fetchCountries() async {
     try {
-      final response = await http.get(Uri.parse('https://restcountries.com/v3.1/all'));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> countryList = json.decode(response.body);
-        List<String> countryNames = [];
-        for (var country in countryList) {
-          if (country['name'] != null && country['name']['common'] != null) {
-            countryNames.add(country['name']['common']);
-          }
-        }
-
-        // Check if the widget is still mounted before updating the state
-        if (mounted) {
-          setState(() {
-            countries = countryNames;
-            _isLoading = false;
-          });
-        }
-      } else {
-        throw Exception('Failed to load countries');
+      final countryNames = await _countryService.fetchCountries();
+      if (mounted) {
+        setState(() {
+          countries = countryNames;
+          _isLoading = false;
+        });
       }
     } catch (e) {
-      // Check if the widget is still mounted before showing the error
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -125,7 +113,7 @@ class SignupNameState extends State<SignupWelcome> {
             ),
             const SizedBox(height: 10),
 
-            // Dropdown for selecting country with a box around it
+            // DropdownSearch for selecting country
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey), // Adds border around the dropdown
@@ -133,24 +121,29 @@ class SignupNameState extends State<SignupWelcome> {
               ),
               child: _isLoading
                   ? Center(child: CircularProgressIndicator()) // Show loading indicator while data is being fetched
-                  : DropdownButton<String>(
-                      value: _selectedCountry,
-                      hint: Text("Select your country"),
-                      isExpanded: true, // Ensures the dropdown expands to fill the width of the container
+                  : DropdownSearch<String>(
+                      popupProps: PopupProps.menu(
+                        showSearchBox: true, // Enable search functionality
+                        searchFieldProps: TextFieldProps(
+                          decoration: InputDecoration(
+                            hintText: "Search for a country",
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      items: countries,
+                      dropdownDecoratorProps: DropDownDecoratorProps(
+                        dropdownSearchDecoration: InputDecoration(
+                          hintText: "Select your country",
+                          border: InputBorder.none,
+                        ),
+                      ),
                       onChanged: (String? newValue) {
                         setState(() {
                           _selectedCountry = newValue;
                         });
                       },
-                      items: countries.map<DropdownMenuItem<String>>((String country) {
-                        return DropdownMenuItem<String>(
-                          value: country,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(country),
-                          ),
-                        );
-                      }).toList(),
+                      selectedItem: _selectedCountry,
                     ),
             ),
             const SizedBox(height: 30),
@@ -178,17 +171,11 @@ class SignupNameState extends State<SignupWelcome> {
                     ),
                   ),
                   onPressed: () {
-                    // Validate inputs
-                    if (_nameController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter your name')),
-                      );
+                    // Validate inputs using InputValidator
+                    if (InputValidator.isFieldEmpty(_nameController.text, context, 'name')) {
                       return;
                     }
-                    if (_selectedCountry == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select your country')),
-                      );
+                    if (InputValidator.isFieldEmpty(_selectedCountry, context, 'country')) {
                       return;
                     }
 

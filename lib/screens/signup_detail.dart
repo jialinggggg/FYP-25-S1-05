@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'signup_success.dart'; // Import the next page
 
-class SignupDetails extends StatefulWidget {
+class SignUpDetail extends StatefulWidget {
   final String name;
   final String location;
   final String gender;
@@ -18,7 +18,7 @@ class SignupDetails extends StatefulWidget {
   final double carbs;
   final double fats;
 
-  const SignupDetails({
+  const SignUpDetail({
     super.key,
     required this.name,
     required this.location,
@@ -37,10 +37,10 @@ class SignupDetails extends StatefulWidget {
   });
 
   @override
-  SignupDetailsState createState() => SignupDetailsState();
+  SignUpDetailState createState() => SignUpDetailState();
 }
 
-class SignupDetailsState extends State<SignupDetails> {
+class SignUpDetailState extends State<SignUpDetail> {
   final _emailController = TextEditingController(); // Controller for email
   final _passwordController = TextEditingController(); // Controller for password
   bool _isLoading = false; // Track loading state
@@ -140,11 +140,11 @@ class SignupDetailsState extends State<SignupDetails> {
       await Supabase.instance.client.from('user_goals').insert({
         'user_id': user.id,
         'goal': widget.goal,
-        'desired_weight': widget.desiredWeight,
-        'daily_calories': widget.dailyCalories,
-        'protein': widget.protein,
-        'carbs': widget.carbs,
-        'fats': widget.fats,
+        'target_weight': widget.desiredWeight,
+        'calories_goal': widget.dailyCalories,
+        'protein_goal': widget.protein,
+        'carbs_goal': widget.carbs,
+        'fats_goal': widget.fats,
       });
 
       // Navigate to the login success page
