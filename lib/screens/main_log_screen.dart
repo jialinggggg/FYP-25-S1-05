@@ -1,4 +1,7 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_food_screen.dart';
 import 'recipes_screen.dart';
 import 'orders_screen.dart';
@@ -22,7 +25,7 @@ class MainLogScreenState extends State<MainLogScreen> {
     "Breakfast": 0,
     "Lunch": 0,
     "Dinner": 0,
-    "Snacks": 0
+    "Snacks": 0,
   };
 
   Map<String, List<Map<String, dynamic>>> loggedMeals = {
@@ -32,7 +35,38 @@ class MainLogScreenState extends State<MainLogScreen> {
     "Snacks": [],
   };
 
-  /// ✅ Add Food Function
+  @override
+  void initState() {
+    super.initState();
+    _fetchLoggedMeals(); // Fetch data when the screen loads
+  }
+
+  /// Function to Fetch Data from Supabase
+  Future<void> _fetchLoggedMeals() async {
+    try {
+      // Ensure you select all columns (including 'id')
+      final data = await Supabase.instance.client
+          .from('foods')
+          .select(); // selects all columns by default
+      if ((data as List).isEmpty) {
+        print('No data found.');
+      } else {
+        print('Fetched meals: $data');
+        setState(() {
+          for (var food in data as List<dynamic>) {
+            String mealType = food['meal_type'];
+            if (loggedMeals.containsKey(mealType)) {
+              loggedMeals[mealType]!.add(food);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print('Error fetching meals: $e');
+    }
+  }
+
+  /// Add Food Function with Supabase
   void _addFood(String mealType) async {
     final List<Map<String, dynamic>>? selectedFoods = await Navigator.push(
       context,
@@ -45,46 +79,101 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
 
     if (selectedFoods != null && selectedFoods.isNotEmpty) {
-      setState(() {
-        for (var food in selectedFoods) {
-          int foodCalories = int.parse(food["calories"].split(" ")[0]);
-          double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
-          double foodProtein = double.parse(food["protein"].split(" ")[0]);
-          double foodFat = double.parse(food["fat"].split(" ")[0]);
+      for (var food in selectedFoods) {
+        int foodCalories = int.parse(food["calories"].split(" ")[0]);
+        double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
+        double foodProtein = double.parse(food["protein"].split(" ")[0]);
+        double foodFat = double.parse(food["fat"].split(" ")[0]);
 
-          if (!loggedMeals[mealType]!.any((f) => f["name"] == food["name"])) {
+        // Check if the food already exists locally
+        if (!loggedMeals[mealType]!.any((f) => f["name"] == food["name"])) {
+          // First update local state
+          setState(() {
             loggedMeals[mealType]!.add(food);
-            mealCalories[mealType] = (mealCalories[mealType] ?? 0) + foodCalories;
+            mealCalories[mealType] =
+                (mealCalories[mealType] ?? 0) + foodCalories;
             totalCaloriesEaten += foodCalories;
-            remainingCalories = (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
+            remainingCalories = (totalDailyGoal - totalCaloriesEaten)
+                .clamp(0, totalDailyGoal);
             totalCarbs += foodCarbs;
             totalProtein += foodProtein;
             totalFat += foodFat;
+          });
+
+          // Then insert the food into Supabase and update the local record with the returned id
+          try {
+            final inserted = await Supabase.instance.client
+                .from('foods')
+                .insert({
+              'name': food["name"],
+              'calories': food["calories"],
+              'carbs': food["carbs"],
+              'protein': food["protein"],
+              'fat': food["fat"],
+              'meal_type': mealType,
+            }).select();
+
+            print('Food added to Supabase: $inserted');
+
+            // Make sure to update the local food item with its generated id.
+            if (inserted.isNotEmpty) {
+              setState(() {
+                // Update the last inserted food with its id from Supabase
+                loggedMeals[mealType]!.last['id'] = inserted.first['id'];
+              });
+            }
+          } catch (e) {
+            print('Error adding food: $e');
           }
         }
-      });
+      }
     }
   }
 
   /// Remove Food Function
-  void _removeFood(String mealType, int index) {
+  Future<void> _removeFood(String mealType, int index) async {
+    // Get the food to remove
+    final food = loggedMeals[mealType]![index];
+    final foodId = food['id']; // Make sure 'id' exists
+
+    if (foodId == null) {
+      print('Food id is null, cannot delete.');
+      return;
+    }
+
+    // Parse the nutrition info to update local totals
+    int foodCalories = int.parse(food["calories"].split(" ")[0]);
+    double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
+    double foodProtein = double.parse(food["protein"].split(" ")[0]);
+    double foodFat = double.parse(food["fat"].split(" ")[0]);
+
+    // First update the local state
     setState(() {
-      var food = loggedMeals[mealType]![index];
-
-      int foodCalories = int.parse(food["calories"].split(" ")[0]);
-      double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
-      double foodProtein = double.parse(food["protein"].split(" ")[0]);
-      double foodFat = double.parse(food["fat"].split(" ")[0]);
-
-      totalCaloriesEaten = (totalCaloriesEaten - foodCalories).clamp(0, totalDailyGoal);
-      remainingCalories = (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
+      totalCaloriesEaten =
+          (totalCaloriesEaten - foodCalories).clamp(0, totalDailyGoal);
+      remainingCalories =
+          (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
       totalCarbs = (totalCarbs - foodCarbs).clamp(0.0, double.infinity);
       totalProtein = (totalProtein - foodProtein).clamp(0.0, double.infinity);
       totalFat = (totalFat - foodFat).clamp(0.0, double.infinity);
 
-      mealCalories[mealType] = (mealCalories[mealType]! - foodCalories).clamp(0, double.infinity).toInt();
+      mealCalories[mealType] =
+          (mealCalories[mealType]! - foodCalories).clamp(0, double.infinity).toInt();
+
+      // Remove the item from the local list
       loggedMeals[mealType]?.removeAt(index);
     });
+
+    // Then make the call to Supabase to delete the row from the 'foods' table
+    try {
+      final response = await Supabase.instance.client
+          .from('foods')
+          .delete()
+          .eq('id', foodId);
+      print('Food deleted from Supabase: $response');
+    } catch (error) {
+      print('Error deleting food from Supabase: $error');
+    }
   }
 
   /// Builds the Summary Card Widget
@@ -99,14 +188,18 @@ class MainLogScreenState extends State<MainLogScreen> {
         children: [
           const Text(
             "Remaining Calories",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54),
           ),
           Text(
             "$remainingCalories kcal",
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+            style:
+                const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          Divider(color: Colors.grey[400]), // Adds a separator line
+          Divider(color: Colors.grey[400]),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -127,9 +220,11 @@ class MainLogScreenState extends State<MainLogScreen> {
       children: [
         Text(
           "$value g",
-          style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+          style:
+              TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
         ),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+        Text(label,
+            style: const TextStyle(color: Colors.grey, fontSize: 14)),
       ],
     );
   }
@@ -149,29 +244,40 @@ class MainLogScreenState extends State<MainLogScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
                 const Text(
                   "Summary",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green),
                 ),
                 const SizedBox(height: 10),
                 _buildSummaryCard(),
                 const SizedBox(height: 20),
                 const Text(
                   "Meal Tracker",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green),
                 ),
                 const SizedBox(height: 10),
                 Column(
                   children: [
-                    _buildMealTile("Breakfast", mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
-                    _buildMealTile("Lunch", mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
-                    _buildMealTile("Dinner", mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
-                    _buildMealTile("Snacks", mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
+                    _buildMealTile("Breakfast",
+                        mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
+                    _buildMealTile("Lunch",
+                        mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
+                    _buildMealTile("Dinner",
+                        mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
+                    _buildMealTile("Snacks",
+                        mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
                   ],
                 ),
               ],
@@ -184,12 +290,12 @@ class MainLogScreenState extends State<MainLogScreen> {
         unselectedItemColor: Colors.black54,
         currentIndex: 2, // Log is the default page
         onTap: (index) {
-          if (index == 0) { // If Orders is clicked
+          if (index == 0) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const OrdersScreen()),
             );
-          } else if (index == 1) { // If Recipes is clicked
+          } else if (index == 1) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const RecipesScreen()),
@@ -197,11 +303,15 @@ class MainLogScreenState extends State<MainLogScreen> {
           }
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"), // Default Page
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart), label: "Orders"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant), label: "Recipes"),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart), label: "Dashboard"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
     );
@@ -215,7 +325,8 @@ class MainLogScreenState extends State<MainLogScreen> {
           backgroundImage: AssetImage(iconPath),
           backgroundColor: Colors.grey,
         ),
-        title: Text(mealType, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(mealType,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text("$kcal kcal"),
         trailing: IconButton(
           icon: const Icon(Icons.add_circle_outline),
@@ -228,9 +339,10 @@ class MainLogScreenState extends State<MainLogScreen> {
 
   /// Meal List Widget
   List<Widget> _buildMealList(String mealType) {
-    if (loggedMeals[mealType] == null || loggedMeals[mealType]!.isEmpty) {
-      return [
-        const Padding(
+    if (loggedMeals[mealType] == null ||
+        loggedMeals[mealType]!.isEmpty) {
+      return const [
+        Padding(
           padding: EdgeInsets.all(8.0),
           child: Text(
             "No food logged yet.",
@@ -245,13 +357,17 @@ class MainLogScreenState extends State<MainLogScreen> {
       Map<String, dynamic> food = entry.value;
 
       return ListTile(
-        title: Text(food["name"], style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("${food["calories"]} - ${food["carbs"]} Carbs, ${food["protein"]} Protein, ${food["fat"]} Fat"),
+        title: Text(food["name"],
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(
+            "${food["calories"]} - ${food["carbs"]} Carbs, ${food["protein"]} Protein, ${food["fat"]} Fat"),
         trailing: IconButton(
-          icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+          icon: const Icon(Icons.remove_circle_outline,
+              color: Colors.red),
           onPressed: () => _removeFood(mealType, index),
         ),
       );
     }).toList();
   }
 }
+
