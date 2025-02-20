@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:nutri_app/screens/profile_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';
+
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -42,7 +44,7 @@ class OrdersScreenState extends State<OrdersScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const PlaceholderScreen(title: "Profile"),
+            builder: (context) => const ProfileScreen(),
           ),
         );
         break;
