@@ -78,6 +78,7 @@ flutter:
     - assets/caesar_salad.png
     - assets/steak_mashed_potatoes.png
     - assets/default_image.png
+    - assets/profile.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_food_screen.dart';
 import 'recipes_screen.dart';
 import 'orders_screen.dart';
+import 'profile_screen.dart';
 
 class MainLogScreen extends StatefulWidget {
   const MainLogScreen({super.key});
@@ -299,6 +300,11 @@ class MainLogScreenState extends State<MainLogScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const RecipesScreen()),
+            );
+          } else if (index == 4) {  // <-- Added this for Profile navigation
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ProfileScreen()), // Navigate to Profile
             );
           }
         },

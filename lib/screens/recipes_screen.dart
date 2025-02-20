@@ -5,6 +5,7 @@ import 'recipe_detail.dart';
 import 'orders_screen.dart';
 import "favourites_screen.dart";
 import 'my_recipes.dart';
+import 'profile_screen.dart';
 
 class RecipesScreen extends StatefulWidget {
   const RecipesScreen({super.key});
@@ -342,7 +343,10 @@ class RecipesScreenState extends State<RecipesScreen> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: "Dashboard")));
         break;
       case 4:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: "Profile")));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen()), // ✅ Navigates to Profile Screen
+        );
         break;
     }
   }

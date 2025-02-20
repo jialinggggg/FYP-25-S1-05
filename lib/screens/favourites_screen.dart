@@ -3,6 +3,7 @@ import 'recipe_detail.dart';
 import 'recipes_screen.dart';
 import "main_log_screen.dart";
 import 'my_recipes.dart';
+import 'profile_screen.dart';
 
 class FavouritesScreen extends StatefulWidget {
   final List<Map<String, dynamic>> favouriteRecipes;
@@ -92,6 +93,18 @@ class FavouritesScreenState extends State<FavouritesScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const MainLogScreen()), // ✅ Go to Log Screen
+        );
+        break;
+      case 3:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: "Dashboard")),
+        );
+        break;
+      case 4:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen()), // ✅ Navigates to Profile Screen
         );
         break;
     }
