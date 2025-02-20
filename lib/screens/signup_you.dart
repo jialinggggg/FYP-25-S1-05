@@ -135,14 +135,14 @@ class SignupYouState extends State<SignupYou> {
             ),
             const SizedBox(height: 25),
 
-            // Age label
+            // birthdate label
             Text(
               "How young are you?",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 
-            // Age text field with date picker
+            // birthdate text field with date picker
             Row(
               children: [
                 Expanded(
@@ -150,7 +150,7 @@ class SignupYouState extends State<SignupYou> {
                     controller: _dateController,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(),
-                      hintText: "Enter your age",
+                      hintText: "Enter your Birthdate",
                     ),
                     keyboardType: TextInputType.number,
                     readOnly: true, // Make the field read-only
@@ -266,18 +266,10 @@ class SignupYouState extends State<SignupYou> {
                   ),
                   onPressed: () {
                     // Validate inputs
-
-
-                    if (_selectedGender == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select your gender')),
-                      );
+                    if (InputValidator.isFieldEmpty(_selectedGender, context, 'select', 'gender')) {
                       return;
                     }
-                    if (_selectedDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter your birth date')),
-                      );
+                    if (InputValidator.isFieldEmpty(_selectedDate.toString(), context, 'enter', 'height')) {
                       return;
                     }
                     if (!InputValidator.isAbove18(_selectedDate!)) {
@@ -286,10 +278,10 @@ class SignupYouState extends State<SignupYou> {
                       );
                       return;
                     }
-                    if (InputValidator.isFieldEmpty(_heightController.text, context, 'height')) {
+                    if (InputValidator.isFieldEmpty(_heightController.text, context, 'enter', 'height')) {
                       return;
                     }
-                    if (InputValidator.isFieldEmpty(_weightController.text, context, 'weight')) {
+                    if (InputValidator.isFieldEmpty(_weightController.text, context, 'enter', 'weight')) {
                       return;
                     }
 
@@ -319,9 +311,11 @@ class SignupYouState extends State<SignupYou> {
                           name: widget.name,
                           location: widget.location,
                           gender: _selectedGender!,
-                          age: DateTime.now().year - _selectedDate!.year,
+                          birthDate: _selectedDate!,
                           height: height,
                           weight: weight,
+                          weightUnit: _weightUnit,
+                          heightUnit: _heightUnit,
                         ),
                       ),
                     );

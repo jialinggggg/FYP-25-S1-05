@@ -172,10 +172,10 @@ class SignupNameState extends State<SignupWelcome> {
                   ),
                   onPressed: () {
                     // Validate inputs using InputValidator
-                    if (InputValidator.isFieldEmpty(_nameController.text, context, 'name')) {
+                    if (InputValidator.isFieldEmpty(_nameController.text, context, 'enter', 'name')) {
                       return;
                     }
-                    if (InputValidator.isFieldEmpty(_selectedCountry, context, 'country')) {
+                    if (InputValidator.isFieldEmpty(_selectedCountry, context, 'select', 'country')) {
                       return;
                     }
 

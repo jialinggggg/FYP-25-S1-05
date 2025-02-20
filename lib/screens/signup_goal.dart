@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'signup_target.dart';
+import '../utils/input_validator.dart';
 
 class SignupGoal extends StatefulWidget {
 
   final String name;
   final String location;
   final String gender;
-  final int age;
+  final DateTime birthDate;
   final double weight;
   final double height;
+  final String weightUnit;
+  final String heightUnit;
   final String preExisting;
   final String allergies;
 
@@ -17,9 +20,11 @@ class SignupGoal extends StatefulWidget {
     required this.name, 
     required this.location,
     required this.gender,
-    required this.age,
+    required this.birthDate,
     required this.weight,
     required this.height,
+    required this.weightUnit,
+    required this.heightUnit,
     required this.preExisting,
     required this.allergies,
     });
@@ -197,6 +202,11 @@ class SignupGoalState extends State<SignupGoal> {
                     ),
                   ),
                   onPressed: () {
+                    // Check if a goal is selected
+                    if (InputValidator.isFieldEmpty(_selectedGoal, context, 'select', 'goal')) {
+                      return;
+                    }
+
                     // Navigate to the SignupYou2 screen
                     Navigator.push(
                       context,
@@ -205,9 +215,11 @@ class SignupGoalState extends State<SignupGoal> {
                           name: widget.name,
                           location: widget.location,
                           gender: widget.gender,
-                          age: widget.age,
+                          birthDate: widget.birthDate,
                           weight: widget.weight,
                           height: widget.height,
+                          weightUnit: widget.weightUnit,
+                          heightUnit: widget.heightUnit,
                           preExisting: widget.preExisting,
                           allergies: widget.allergies,
                           goal: _selectedGoal!,

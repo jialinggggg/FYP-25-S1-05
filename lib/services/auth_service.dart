@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/encryption.dart'; // Import the encryption utility
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -12,7 +13,7 @@ class AuthService {
   // Function to check if email exists in Supabase Auth
   Future<bool> isEmailAvailable(String email) async {
     try {
-      final response = await Supabase.instance.client
+      final response = await _supabase
           .from('users')
           .select()
           .eq('email', email);
@@ -30,9 +31,11 @@ class AuthService {
     required String name,
     required String location,
     required String gender,
-    required int age,
+    required DateTime birthDate, // Change age to birthDate
     required double weight,
     required double height,
+    required String weightUnit,
+    required String heightUnit,
     required String preExisting,
     required String allergies,
     required String goal,
@@ -43,6 +46,15 @@ class AuthService {
     required double fats,
   }) async {
     try {
+      // Generate and store encryption key and IV
+      final encryptionKey = Encryption.generateEncryptionKey();
+      final encryptionIV = Encryption.generateIV();
+      await Encryption.storeEncryptionKeys(encryptionKey, encryptionIV);
+
+      // Encrypt sensitive data
+      final encryptedPreExisting = Encryption.encryptAES(preExisting, encryptionKey, encryptionIV);
+      final encryptedAllergies = Encryption.encryptAES(allergies, encryptionKey, encryptionIV);
+
       // Create user account with Supabase Auth
       final response = await _supabase.auth.signUp(
         email: email,
@@ -57,22 +69,25 @@ class AuthService {
       // Get the auto-generated UUID from the user object
       final userId = user.id;
 
+      // Convert DateTime to ISO 8601 string
+      final birthDateString = birthDate.toIso8601String();
+
       // Insert profile data
-      await _supabase.from('profiles').insert({
+      await _supabase.from('user_profiles').insert({
         'user_id': userId,
         'name': name,
         'location': location,
         'gender': gender,
-        'age': age,
+        'birth_date': birthDateString, // Use the converted string
         'weight': weight,
         'height': height,
       });
 
-      // Insert medical history data
-      await _supabase.from('medical_history').insert({
+      // Insert medical history data with encrypted fields
+      await _supabase.from('user_medical_info').insert({
         'user_id': userId,
-        'pre_existing': preExisting,
-        'allergies': allergies,
+        'pre_existing': encryptedPreExisting,
+        'allergies': encryptedAllergies,
       });
 
       // Insert user goals data

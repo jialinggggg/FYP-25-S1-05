@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'signup_detail.dart';
+import '../utils/calculations.dart';
 
 class SignupTarget extends StatefulWidget {
   final String name;
   final String location;
   final String gender;
-  final int age;
+  final DateTime birthDate;
   final double weight;
   final double height;
+  final String weightUnit;
+  final String heightUnit;
+
   final String preExisting;
   final String allergies;
   final String goal;
@@ -17,12 +21,14 @@ class SignupTarget extends StatefulWidget {
     required this.name, 
     required this.location,
     required this.gender,
-    required this.age,
+    required this.birthDate,
     required this.weight,
     required this.height,
     required this.preExisting,
     required this.allergies,
     required this.goal,
+    required this.weightUnit,
+    required this.heightUnit,
     });
 
   @override
@@ -53,12 +59,22 @@ class SignupTargetState extends State<SignupTarget> {
 
   // Function to calculate recommended values
   void _calculateRecommendations() {
-    // Example calculations (replace with actual logic)
-    _recommendedWeight = _calculateRecommendedWeight(); // Start with current weight
-    _recommendedCalories = _calculateDailyCalories();
-    _recommendedProtein = _recommendedCalories * 0.3 / 4; // 30% of calories from protein
-    _recommendedFats = _recommendedCalories * 0.3 / 9; // 30% of calories from fats
-    _recommendedCarbs = _recommendedCalories * 0.4 / 4; // 40% of calories from carbs
+    double heightInCm = widget.heightUnit == 'feet'
+        ? Calculations.convertFeetToCm(widget.height)
+        : widget.height;
+
+    // Calculate ideal body weight
+    _recommendedWeight = Calculations.calculateIdealBodyWeight(widget.gender, heightInCm);
+
+    // Calculate BMR and daily calories
+    double bmr = Calculations.calculateBMR(widget.gender, _recommendedWeight, heightInCm, DateTime.now().year - widget.birthDate.year);
+    _recommendedCalories = Calculations.calculateDailyCalories(bmr, widget.goal);
+
+    // Calculate macronutrients
+    Map<String, double> macros = Calculations.calculateMacronutrients(_recommendedCalories);
+    _recommendedProtein = macros['protein']!;
+    _recommendedFats = macros['fats']!;
+    _recommendedCarbs = macros['carbs']!;
 
     // Set initial values in the text fields
     _desiredWeightController.text = _recommendedWeight.toStringAsFixed(1);
@@ -66,41 +82,6 @@ class SignupTargetState extends State<SignupTarget> {
     _proteinController.text = _recommendedProtein.toStringAsFixed(1);
     _fatsController.text = _recommendedFats.toStringAsFixed(1);
     _carbsController.text = _recommendedCarbs.toStringAsFixed(1);
-  }
-
-  // Function to calculate recommended weight 
-  double _calculateRecommendedWeight() {
-    // Ideal Body Weight (IBW) calculation
-    double ibw;
-    if (widget.gender == 'Male'){
-      ibw = 50 + (0.9 * (widget.height - 152));
-    } else {
-      ibw = 45.5 + (0.9 * (widget.height - 152));
-    }
-    return ibw;
-  }
-
-  // Function to calculate daily calories (example logic)
-  int _calculateDailyCalories() {
-    // Basal Metabolic Rate (BMR) calculation
-    double bmr;
-    if (widget.gender == 'Male') {
-      bmr = 88.362 + (13.397 * widget.weight) + (4.799 * widget.height) - (5.677 * widget.age);
-    } else {
-      bmr = 447.593 + (9.247 * widget.weight) + (3.098 * widget.height) - (4.330 * widget.age);
-    }
-
-    // Adjust BMR based on goal
-    switch (widget.goal) {
-      case 'lose_weight':
-        return (bmr * 0.8).round(); // 20% calorie deficit
-      case 'gain_weight':
-        return (bmr * 1.2).round(); // 20% calorie surplus
-      case 'gain_muscle':
-        return (bmr * 1.1).round(); // 10% calorie surplus
-      default:
-        return bmr.round(); // Maintain weight
-    }
   }
 
   // Function to update a value with a step
@@ -129,6 +110,44 @@ class SignupTargetState extends State<SignupTarget> {
           break;
       }
     });
+  }
+
+  // Helper function to build an editable row
+  Widget _buildEditableRow({
+    required String label,
+    required TextEditingController controller,
+    required VoidCallback onDecrease,
+    required VoidCallback onIncrease,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(width: 20),
+        IconButton(
+          icon: Icon(Icons.remove_circle_outline),
+          onPressed: onDecrease,
+        ),
+        SizedBox(
+          width: 80,
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        IconButton(
+          icon: Icon(Icons.add_circle_outline),
+          onPressed: onIncrease,
+        ),
+      ],
+    );
   }
 
   @override
@@ -254,9 +273,11 @@ class SignupTargetState extends State<SignupTarget> {
                           name: widget.name,
                           location: widget.location,
                           gender: widget.gender,
-                          age: widget.age,
+                          birthDate: widget.birthDate,
                           weight: double.parse(_desiredWeightController.text),
                           height: widget.height,
+                          weightUnit: widget.weightUnit,
+                          heightUnit: widget.heightUnit,
                           preExisting: widget.preExisting,
                           allergies: widget.allergies,
                           goal: widget.goal,
@@ -279,44 +300,6 @@ class SignupTargetState extends State<SignupTarget> {
           ],
         ),
       ),
-    );
-  }
-
-  // Helper function to build an editable row
-  Widget _buildEditableRow({
-    required String label,
-    required TextEditingController controller,
-    required VoidCallback onDecrease,
-    required VoidCallback onIncrease,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(width: 20),
-        IconButton(
-          icon: Icon(Icons.remove_circle_outline),
-          onPressed: onDecrease,
-        ),
-        SizedBox(
-          width: 80,
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.add_circle_outline),
-          onPressed: onIncrease,
-        ),
-      ],
     );
   }
 }

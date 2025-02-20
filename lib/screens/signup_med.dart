@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 import 'signup_goal.dart';
+import '../utils/input_validator.dart';
 
 class SignupMed extends StatefulWidget {
   final String name;
   final String location;
   final String gender;
-  final int age;
+  final DateTime birthDate;
   final double weight;
   final double height;
+  final String weightUnit;
+  final String heightUnit;
 
   const SignupMed({
     super.key, 
     required this.name, 
     required this.location,
     required this.gender,
-    required this.age,
+    required this.birthDate,
     required this.weight,
     required this.height,
+    required this.weightUnit,
+    required this.heightUnit,
   });
 
   @override
@@ -171,6 +176,23 @@ class SignupMedState extends State<SignupMed> {
                     ),
                   ),
                   onPressed: () {
+                    // Validate pre-existing conditions and allergies
+                    if (InputValidator.isFieldEmpty(_preExistingDropdownValue, context, 'select', 'pre-existing conditions')) {
+                      return;
+                    }
+
+                    if (InputValidator.isFieldEmpty(_allergiesDropdownValue, context, 'select', 'allergies')) {
+                      return;
+                    }
+
+                    if (_preExistingDropdownValue == 'Yes' && InputValidator.isFieldEmpty(_preExistingController.text, context, 'enter', 'pre-existing conditions')) {
+                      return;
+                    }
+
+                    if (_allergiesDropdownValue == 'Yes' && InputValidator.isFieldEmpty(_allergiesController.text, context, 'enter', 'allergies')) {
+                      return;
+                    }
+
                     /// Navigate to the SignupGoal screen
                     Navigator.push(
                       context,
@@ -179,9 +201,11 @@ class SignupMedState extends State<SignupMed> {
                           name: widget.name,
                           location: widget.location,
                           gender: widget.gender,
-                          age: widget.age,
+                          birthDate: widget.birthDate,
                           weight: widget.weight,
                           height: widget.height,
+                          weightUnit: widget.weightUnit,
+                          heightUnit: widget.heightUnit,
                           preExisting: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : "No",
                           allergies: _allergiesDropdownValue == 'Yes' ? _allergiesController.text : "No",
                         )

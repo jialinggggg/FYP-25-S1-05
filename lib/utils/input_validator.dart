@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 
 class InputValidator {
   // Check if a text field is empty
-  static bool isFieldEmpty(String? value, BuildContext context, String fieldName) {
+  static bool isFieldEmpty(String? value, BuildContext context, String action, String fieldName) {
     if (value == null || value.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter your $fieldName')),
+        SnackBar(content: Text('Please $action your $fieldName')),
       );
       return true;
     }

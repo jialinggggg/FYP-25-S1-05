@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'signup_success.dart'; // Import the next page
+import '../services/auth_service.dart'; // Import the AuthService
 
 class SignUpDetail extends StatefulWidget {
   final String name;
   final String location;
   final String gender;
-  final int age;
+  final DateTime birthDate;
   final double weight;
   final double height;
+  final String weightUnit;
+  final String heightUnit;
   final String preExisting;
   final String allergies;
   final String goal;
@@ -23,9 +25,11 @@ class SignUpDetail extends StatefulWidget {
     required this.name,
     required this.location,
     required this.gender,
-    required this.age,
+    required this.birthDate,
     required this.weight,
     required this.height,
+    required this.weightUnit,
+    required this.heightUnit,
     required this.preExisting,
     required this.allergies,
     required this.goal,
@@ -44,120 +48,49 @@ class SignUpDetailState extends State<SignUpDetail> {
   final _emailController = TextEditingController(); // Controller for email
   final _passwordController = TextEditingController(); // Controller for password
   bool _isLoading = false; // Track loading state
+  final AuthService _authService = AuthService(); // Instance of AuthService
 
-  // Function to check if email exists in Supabase Auth
-  Future<bool> _isEmailAvailable(String email) async {
-    try {
-      final response = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('email', email);
-
-      return response.isEmpty; // If empty, email is available
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error checking email availability: $e')),
-        );
-      }
-      return false;
-    }
-  }
-
-  // Function to validate email format
-  bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    return emailRegex.hasMatch(email);
-  }
-
-  // Function to create a user account and insert data into the database
   Future<void> _createAccount() async {
     setState(() {
-    _isLoading = true;
+      _isLoading = true;
     });
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Validate email format
-    if (!_isValidEmail(email)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please enter a valid email address.')),
-        );
-      }
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
-    // Check if email is available
-    final isAvailable = await _isEmailAvailable(email);
-    if (!isAvailable) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Email is already in use. Please try to login.')),
-        );
-      }
-      setState(() {
-        _isLoading = false;
-      });
-      return;
-    }
-
     try {
-      // Create user account with Supabase Auth
-      final response = await Supabase.instance.client.auth.signUp(
+      await _authService.createAccount(
         email: email,
         password: password,
+        name: widget.name,
+        location: widget.location,
+        gender: widget.gender,
+        birthDate: widget.birthDate,
+        weight: widget.weight,
+        height: widget.height,
+        weightUnit: widget.weightUnit,
+        heightUnit: widget.heightUnit,
+        preExisting: widget.preExisting,
+        allergies: widget.allergies,
+        goal: widget.goal,
+        desiredWeight: widget.desiredWeight,
+        dailyCalories: widget.dailyCalories,
+        protein: widget.protein,
+        carbs: widget.carbs,
+        fats: widget.fats,
       );
 
-      final user = response.user;
-      if (user == null) {
-        throw Exception('User not created');
-      }
-
-      // Insert profile data
-      await Supabase.instance.client.from('profiles').insert({
-        'user_id': user.id,
-        'name': widget.name,
-        'location': widget.location,
-        'gender': widget.gender,
-        'age': widget.age,
-        'weight': widget.weight,
-        'height': widget.height,
-      });
-
-      // Insert medical history data
-      await Supabase.instance.client.from('medical_history').insert({
-        'user_id': user.id,
-        'pre_existing': widget.preExisting,
-        'allergies': widget.allergies,
-      });
-
-      // Insert user goals data
-      await Supabase.instance.client.from('user_goals').insert({
-        'user_id': user.id,
-        'goal': widget.goal,
-        'target_weight': widget.desiredWeight,
-        'calories_goal': widget.dailyCalories,
-        'protein_goal': widget.protein,
-        'carbs_goal': widget.carbs,
-        'fats_goal': widget.fats,
-      });
-
-      // Navigate to the login success page
+      // Navigate to the success page
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => SignupSuccess()),
         );
       }
-    } catch (error) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to create account: $error')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
