@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_food_screen.dart';
 import 'recipes_screen.dart';
 import 'orders_screen.dart';
-import 'profile_screen.dart';
 
 class MainLogScreen extends StatefulWidget {
   const MainLogScreen({super.key});
@@ -16,11 +15,13 @@ class MainLogScreen extends StatefulWidget {
 
 class MainLogScreenState extends State<MainLogScreen> {
   final int totalDailyGoal = 2000;
+  final TextEditingController _weightController = TextEditingController();
   int remainingCalories = 2000;
   int totalCaloriesEaten = 0;
   double totalCarbs = 0;
   double totalProtein = 0;
   double totalFat = 0;
+  double? userWeight;
 
   Map<String, int> mealCalories = {
     "Breakfast": 0,
@@ -37,10 +38,18 @@ class MainLogScreenState extends State<MainLogScreen> {
   };
 
   @override
-  void initState() {
-    super.initState();
-    _fetchLoggedMeals(); // Fetch data when the screen loads
-  }
+void initState() {
+  super.initState();
+  _fetchLoggedMeals();
+  // Initialize the weight controller with current weight or default to "0"
+  _weightController.text = userWeight?.toStringAsFixed(0) ?? '0';
+}
+
+@override
+void dispose() {
+  _weightController.dispose();
+  super.dispose();
+}
 
   /// Function to Fetch Data from Supabase
   Future<void> _fetchLoggedMeals() async {
@@ -106,6 +115,7 @@ class MainLogScreenState extends State<MainLogScreen> {
             final inserted = await Supabase.instance.client
                 .from('foods')
                 .insert({
+              'user_id': Supabase.instance.client.auth.currentUser?.id,
               'name': food["name"],
               'calories': food["calories"],
               'carbs': food["carbs"],
@@ -176,6 +186,98 @@ class MainLogScreenState extends State<MainLogScreen> {
       print('Error deleting food from Supabase: $error');
     }
   }
+  
+/// Builds the Daily Weight Widget with text input and increment/decrement buttons
+Widget _buildDailyWeightWidget() {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey[200],
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const Text(
+          "Log Your Weight",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              onPressed: () {
+                setState(() {
+                  double currentWeight = double.tryParse(_weightController.text) ?? 0;
+                  currentWeight = (currentWeight - 1).clamp(0, double.infinity);
+                  userWeight = currentWeight;
+                  _weightController.text = currentWeight.toStringAsFixed(0);
+                });
+              },
+            ),
+            SizedBox(
+              width: 100, // Fixed width to help center the input field
+              child: TextField(
+                controller: _weightController,
+                textAlign: TextAlign.center, // Center the text inside the field
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: "Weight (kg)",
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (value) {
+                  double? newWeight = double.tryParse(value);
+                  if (newWeight != null) {
+                    setState(() {
+                      userWeight = newWeight;
+                    });
+                  }
+                },
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+              onPressed: () {
+                setState(() {
+                  double currentWeight = double.tryParse(_weightController.text) ?? 0;
+                  currentWeight += 1;
+                  userWeight = currentWeight;
+                  _weightController.text = currentWeight.toStringAsFixed(0);
+                });
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: () {
+            double? submittedWeight = double.tryParse(_weightController.text);
+            if (submittedWeight != null) {
+              setState(() {
+                userWeight = submittedWeight;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Weight logged: ${submittedWeight.toStringAsFixed(0)} kg"),
+                ),
+              );
+            }
+          },
+          child: const Text("Submit Weight"),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
 
   /// Builds the Summary Card Widget
   Widget _buildSummaryCard() {
@@ -230,98 +332,90 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          "Main Log Updated Frame",
-          style: TextStyle(color: Colors.black, fontSize: 18),
-        ),
-        centerTitle: true,
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      title: const Text(
+        "Main Log Updated Frame",
+        style: TextStyle(color: Colors.black, fontSize: 18),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                const Text(
-                  "Summary",
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green),
+      centerTitle: true,
+    ),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                "Summary",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
                 ),
-                const SizedBox(height: 10),
-                _buildSummaryCard(),
-                const SizedBox(height: 20),
-                const Text(
-                  "Meal Tracker",
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green),
+              ),
+              const SizedBox(height: 10),
+              _buildSummaryCard(),
+              const SizedBox(height: 20),
+              const Text(
+                "Meal Tracker",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
                 ),
-                const SizedBox(height: 10),
-                Column(
-                  children: [
-                    _buildMealTile("Breakfast",
-                        mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
-                    _buildMealTile("Lunch",
-                        mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
-                    _buildMealTile("Dinner",
-                        mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
-                    _buildMealTile("Snacks",
-                        mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 10),
+              Column(
+                children: [
+                  _buildMealTile("Breakfast", mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
+                  _buildMealTile("Lunch", mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
+                  _buildMealTile("Dinner", mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
+                  _buildMealTile("Snacks", mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildDailyWeightWidget(), // Moved this here below Meal Tracker
+            ],
           ),
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        currentIndex: 2, // Log is the default page
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const OrdersScreen()),
-            );
-          } else if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RecipesScreen()),
-            );
-          } else if (index == 4) {  // <-- Added this for Profile navigation
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileScreen()), // Navigate to Profile
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart), label: "Dashboard"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
-    );
-  }
+    ),
+    bottomNavigationBar: BottomNavigationBar(
+      selectedItemColor: Colors.black,
+      unselectedItemColor: Colors.black54,
+      currentIndex: 2, // Log is the default page
+      onTap: (index) {
+        if (index == 0) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const OrdersScreen()),
+          );
+        } else if (index == 1) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const RecipesScreen()),
+          );
+        }
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
+        BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
+        BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
+        BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Dashboard"),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+      ],
+    ),
+  );
+}
+
+
 
   /// Meal Tile Widget
   Widget _buildMealTile(String mealType, int kcal, String iconPath) {
