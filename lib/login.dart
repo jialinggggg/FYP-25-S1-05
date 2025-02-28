@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_log_screen.dart';
+import 'signup_welcome.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -11,13 +12,12 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Log In (User/Biz Partner)",
-          style: TextStyle(color: Colors.black),
+        title: Text(
+          "Login (User/Biz Partner)",
+          style: TextStyle(
+            color: Colors.green[800],
+            fontWeight: FontWeight.bold
+          ),
         ),
         centerTitle: true,
       ),
@@ -45,10 +45,10 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   const Spacer(),
                   const Text(
-                    "Welcome Back! Glad\nto see you, Again!",
+                    "EATWELL",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
@@ -78,16 +78,15 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
                   // Forgot Password
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {},
-                      child: const Text(
+                      child: Text(
                         "Forgot Password?",
                         style: TextStyle(
-                          color: Colors.black,
+                          color: Colors.green[800],
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -100,7 +99,7 @@ class LoginScreen extends StatelessWidget {
                     height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: Colors.green[700],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -112,7 +111,7 @@ class LoginScreen extends StatelessWidget {
                         );
                       },
                       child: const Text(
-                        "Login",
+                        "Log In",
                         style: TextStyle(fontSize: 18, color: Colors.white),
                       ),
                     ),
@@ -124,18 +123,23 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       const Text("Don’t have an account? "),
                       GestureDetector(
-                        onTap: () {},
-                        child: const Text(
-                          "Register Now",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => SignupWelcome()), // Navigate to LoginScreen
+                          );
+                        },
+                        child: Text(
+                          'Register Now',
                           style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                            color: Colors.green[800],
+                            fontWeight: FontWeight.bold
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 250),
                 ],
               ),
             ),
