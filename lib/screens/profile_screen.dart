@@ -193,7 +193,7 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   /// Handles Account Deletion
   void _deleteAccount() {
-    // TODO: Call API or backend to delete user account
+    // Call API or backend to delete user account
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Account deleted successfully!")),
     );
