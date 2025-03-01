@@ -3,6 +3,8 @@ import 'main_log_screen.dart';
 import 'orders_screen.dart';
 import 'recipes_screen.dart';
 import 'favourites_screen.dart';
+import 'profile_screen.dart';
+import 'dashboard_screen.dart';
 
 class MyRecipesScreen extends StatefulWidget {
   final List<Map<String, dynamic>> myRecipes; // ✅ Only User-Added Recipes
@@ -98,6 +100,18 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const MainLogScreen()),
+          );
+          break;
+        case 3:
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+          break;
+        case 4:
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const ProfileScreen()),
           );
           break;
       }

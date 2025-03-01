@@ -437,7 +437,7 @@ class RecipesScreenState extends State<RecipesScreen> {
         ),
       ),
 
-      // Bottom Navigation Bar
+      /// Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,

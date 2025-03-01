@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'signup_details.dart';
+import 'signup_detail.dart';
 
 class SignupTarget extends StatefulWidget {
   final String name;
@@ -250,7 +250,7 @@ class SignupTargetState extends State<SignupTarget> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SignupDetails(
+                        builder: (context) => SignUpDetail(
                           name: widget.name,
                           location: widget.location,
                           gender: widget.gender,

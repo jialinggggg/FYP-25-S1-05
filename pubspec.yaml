@@ -30,8 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.3
+  http: ^1.1.0
   supabase_flutter: ^2.0.0
+  dropdown_search: ^5.0.6
   fl_chart: ^0.64.0
 
   # The following adds the Cupertino Icons font to your application.
@@ -79,6 +80,7 @@ flutter:
     - assets/caesar_salad.png
     - assets/steak_mashed_potatoes.png
     - assets/default_image.png
+    - assets/profile.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
