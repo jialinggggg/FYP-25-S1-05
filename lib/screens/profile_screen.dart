@@ -1,8 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'dashboard_screen.dart';
+import 'login.dart';
 import 'orders_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';
-import 'login.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -11,7 +14,29 @@ class ProfileScreen extends StatefulWidget {
   ProfileScreenState createState() => ProfileScreenState();
 }
 
+/// Placeholder Screens for Missing Pages
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Text(
+          "$title Page Coming Soon...",
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}
+
 class ProfileScreenState extends State<ProfileScreen> {
+  /// Navigation Index
+  int _selectedIndex = 4; // Profile is the current page
+
   /// User Information
   String name = "Jackson";
   String email = "Jackson123@gmail.com";
@@ -26,6 +51,42 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   /// User Allergies
   List<String> allergies = ["Peanuts", "Shellfish", "Soy", "Dairy", "Prawn", "Crab"];
+
+  /// Navigation Logic
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    switch (index) {
+      case 0: // Orders
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OrdersScreen())
+        );
+        break;
+      case 1: // Recipes
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RecipesScreen())
+        );
+        break;
+      case 2: // Log
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainLogScreen())
+        );
+        break;
+      case 3: // Dashboard (Placeholder)
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen())
+        );
+        break;
+      case 4: // Profile (stay here)
+        break;
+    }
+  }
 
   /// Function to Show Edit Modal
   void _showEditModal(String section) {
@@ -132,7 +193,7 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   /// Handles Account Deletion
   void _deleteAccount() {
-    // TODO: Call API or backend to delete user account
+    // Call API or backend to delete user account
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Account deleted successfully!")),
     );
@@ -416,13 +477,13 @@ class ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text(
+          "My Profile",
+          style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Profile",
-          style: TextStyle(color: Colors.black, fontSize: 20),
-        ),
-        centerTitle: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -514,25 +575,17 @@ class ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
 
-      /// 🔹 Bottom Navigation Bar (Same as Main Log Screen)
+      /// 🔹 Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
+        selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,
-        currentIndex: 4,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const OrdersScreen()));
-          } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const RecipesScreen()));
-          } else if (index == 2) {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const MainLogScreen()));
-          }
-        },
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Recipes"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet_below_rectangle,), label: "Logs"),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
@@ -567,7 +620,6 @@ class ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-
 /// Reusable Profile Info Row Widget
 class ProfileInfoRow extends StatelessWidget {
   final String label;
@@ -586,4 +638,3 @@ class ProfileInfoRow extends StatelessWidget {
     );
   }
 }
-

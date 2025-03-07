@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dashboard_screen.dart';
 import 'recipe_detail.dart';
 import 'recipes_screen.dart';
 import "main_log_screen.dart";
@@ -98,7 +99,7 @@ class FavouritesScreenState extends State<FavouritesScreen> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: "Dashboard")),
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
         );
         break;
       case 4:

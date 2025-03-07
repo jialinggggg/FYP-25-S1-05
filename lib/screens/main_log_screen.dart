@@ -1,8 +1,12 @@
 // ignore_for_file: avoid_print
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'add_food_screen.dart';
+import 'dashboard_screen.dart';
+import 'profile_screen.dart';
 import 'recipes_screen.dart';
 import 'orders_screen.dart';
 
@@ -13,7 +17,29 @@ class MainLogScreen extends StatefulWidget {
   MainLogScreenState createState() => MainLogScreenState();
 }
 
+/// Placeholder Screens for Missing Pages
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Text(
+          "$title Page Coming Soon...",
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+}
+
 class MainLogScreenState extends State<MainLogScreen> {
+  /// Navigation Index
+  int _selectedIndex = 2; // MainLog is the current page
+
   final int totalDailyGoal = 2000;
   final TextEditingController _weightController = TextEditingController();
   int remainingCalories = 2000;
@@ -22,6 +48,43 @@ class MainLogScreenState extends State<MainLogScreen> {
   double totalProtein = 0;
   double totalFat = 0;
   double? userWeight;
+
+  /// Navigation Logic
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    switch (index) {
+      case 0: // Orders
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OrdersScreen())
+        );
+        break;
+      case 1: // Recipes
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const RecipesScreen())
+        );
+        break;
+      case 2: // Log (stay here)
+        break;
+      case 3: // Dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen())
+        );
+        break;
+      case 4: // Profile
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen())
+        );
+        break;
+    }
+  }
+
 
   Map<String, int> mealCalories = {
     "Breakfast": 0,
@@ -216,7 +279,7 @@ class MainLogScreenState extends State<MainLogScreen> {
     }
   }
 
-  /// Builds the Daily Weight Widget with text input and increment/decrement buttons.
+  /// Builds the Daily Weight Widget with text input and increment/decrement buttons
   Widget _buildDailyWeightWidget() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -240,24 +303,21 @@ class MainLogScreenState extends State<MainLogScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               IconButton(
-                icon:
-                    const Icon(Icons.remove_circle_outline, color: Colors.red),
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
                 onPressed: () {
                   setState(() {
-                    double currentWeight =
-                        double.tryParse(_weightController.text) ?? 0;
-                    currentWeight =
-                        (currentWeight - 1).clamp(0, double.infinity);
+                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
+                    currentWeight = (currentWeight - 1).clamp(0, double.infinity);
                     userWeight = currentWeight;
                     _weightController.text = currentWeight.toStringAsFixed(0);
                   });
                 },
               ),
               SizedBox(
-                width: 100,
+                width: 100, // Fixed width to help center the input field
                 child: TextField(
                   controller: _weightController,
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.center, // Center the text inside the field
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: "Weight (kg)",
@@ -274,12 +334,10 @@ class MainLogScreenState extends State<MainLogScreen> {
                 ),
               ),
               IconButton(
-                icon:
-                    const Icon(Icons.add_circle_outline, color: Colors.green),
+                icon: const Icon(Icons.add_circle_outline, color: Colors.green),
                 onPressed: () {
                   setState(() {
-                    double currentWeight =
-                        double.tryParse(_weightController.text) ?? 0;
+                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
                     currentWeight += 1;
                     userWeight = currentWeight;
                     _weightController.text = currentWeight.toStringAsFixed(0);
@@ -291,16 +349,14 @@ class MainLogScreenState extends State<MainLogScreen> {
           const SizedBox(height: 10),
           ElevatedButton(
             onPressed: () {
-              double? submittedWeight =
-                  double.tryParse(_weightController.text);
+              double? submittedWeight = double.tryParse(_weightController.text);
               if (submittedWeight != null) {
                 setState(() {
                   userWeight = submittedWeight;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                        "Weight logged: ${submittedWeight.toStringAsFixed(0)} kg"),
+                    content: Text("Weight logged: ${submittedWeight.toStringAsFixed(0)} kg"),
                   ),
                 );
               }
@@ -312,8 +368,9 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-  /// Builds the Summary Card Widget.
+  /// Builds the Summary Card Widget
   Widget _buildSummaryCard() {
+    double progress = totalCaloriesEaten / totalDailyGoal;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -327,12 +384,35 @@ class MainLogScreenState extends State<MainLogScreen> {
             style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black54),
+                color: Colors.black54
+            ),
           ),
-          Text(
-            "$remainingCalories kcal",
-            style:
-                const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+          const SizedBox(height: 10),
+
+          /// Circular Progress Indicator
+          CircularPercentIndicator(
+            radius: 80.0,
+            lineWidth: 12.0,
+            percent: progress.clamp(0.0, 1.0),
+            center: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  "$remainingCalories kcal",
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  "Remaining",
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+            progressColor: Colors.green,
+            backgroundColor: Colors.grey[300]!,
+            circularStrokeCap: CircularStrokeCap.round,
+            animation: true,
+            animationDuration: 800,
           ),
           const SizedBox(height: 10),
           Divider(color: Colors.grey[400]),
@@ -340,9 +420,9 @@ class MainLogScreenState extends State<MainLogScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildMacroIndicator(totalCarbs, "Carbs", Colors.brown),
-              _buildMacroIndicator(totalProtein, "Protein", Colors.blue),
-              _buildMacroIndicator(totalFat, "Fat", Colors.yellow[800]!),
+              _buildMacroIndicator(totalCarbs, "Carbs", Colors.amber[800]!),
+              _buildMacroIndicator(totalProtein, "Protein", Colors.purple[800]!),
+              _buildMacroIndicator(totalFat, "Fat", Colors.lightBlue[800]!),
             ],
           ),
         ],
@@ -357,7 +437,7 @@ class MainLogScreenState extends State<MainLogScreen> {
         Text(
           "$value g",
           style:
-              TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
+          TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
         ),
         Text(label,
             style: const TextStyle(color: Colors.grey, fontSize: 14)),
@@ -369,13 +449,13 @@ class MainLogScreenState extends State<MainLogScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          "Main Log Updated Frame",
-          style: TextStyle(color: Colors.black, fontSize: 18),
+        title: Text(
+          "Food Log",
+          style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -407,48 +487,30 @@ class MainLogScreenState extends State<MainLogScreen> {
                 const SizedBox(height: 10),
                 Column(
                   children: [
-                    _buildMealTile("Breakfast",
-                        mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
-                    _buildMealTile("Lunch",
-                        mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
-                    _buildMealTile("Dinner",
-                        mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
-                    _buildMealTile("Snacks",
-                        mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
+                    _buildMealTile("Breakfast", mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
+                    _buildMealTile("Lunch", mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
+                    _buildMealTile("Dinner", mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
+                    _buildMealTile("Snacks", mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
                   ],
                 ),
                 const SizedBox(height: 20),
-                _buildDailyWeightWidget(),
+                _buildDailyWeightWidget(), // Moved this here below Meal Tracker
               ],
             ),
           ),
         ),
       ),
+      // Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
+        selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,
-        currentIndex: 2, // Log is the default page
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const OrdersScreen()),
-            );
-          } else if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RecipesScreen()),
-            );
-          }
-        },
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Recipes"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet_below_rectangle,), label: "Logs"),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

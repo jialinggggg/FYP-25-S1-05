@@ -1,4 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'dashboard_screen.dart';
 import 'main_log_screen.dart';
 import 'add_recipe.dart';
 import 'recipe_detail.dart';
@@ -14,9 +17,7 @@ class RecipesScreen extends StatefulWidget {
   RecipesScreenState createState() => RecipesScreenState();
 }
 
-
-
-/// ✅ Placeholder Screens for Missing Pages
+/// Placeholder Screens for Missing Pages
 class PlaceholderScreen extends StatelessWidget {
   final String title;
   const PlaceholderScreen({super.key, required this.title});
@@ -36,10 +37,48 @@ class PlaceholderScreen extends StatelessWidget {
 }
 
 class RecipesScreenState extends State<RecipesScreen> {
-
+  /// Navigation Index
+  int _selectedIndex = 1; // Recipes is the current page
   int _selectedTab = 0; // 0: Discover, 1: Favourites, 2: My Recipes
+
   List<Map<String, dynamic>> favouriteRecipes = []; // Stores Favourite Recipes
   List<Map<String, dynamic>> myRecipes = []; // ✅ Stores Only User-Added Recipes
+
+  /// Navigation Logic
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    switch (index) {
+      case 0: // Orders
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OrdersScreen())
+        );
+        break;
+      case 1: // Recipes (stay here)
+        break;
+      case 2: // Log
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainLogScreen())
+        );
+        break;
+      case 3: // Dashboard (Placeholder)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen())
+        );
+        break;
+      case 4: // Profile
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfileScreen())
+        );
+        break;
+    }
+  }
 
   void _addToFavourites(Map<String, dynamic> recipe) {
     setState(() {
@@ -63,8 +102,6 @@ class RecipesScreenState extends State<RecipesScreen> {
       });
     }
   }
-
-
 
   /// List of Recipes (Categorized)
   final List<Map<String, dynamic>> allRecipes = [
@@ -256,9 +293,6 @@ class RecipesScreenState extends State<RecipesScreen> {
   /// Search Controller
   final TextEditingController _searchController = TextEditingController();
 
-  /// Navigation Index
-  int _selectedIndex = 1; // Recipes is the current page
-
   @override
   void initState() {
     super.initState();
@@ -320,48 +354,17 @@ class RecipesScreenState extends State<RecipesScreen> {
     );
   }
 
-  /// Navigation Logic
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OrdersScreen()),
-        );
-        break;
-      case 1:
-      // Stay on Recipes screen
-        break;
-      case 2:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const MainLogScreen()));
-        break;
-      case 3:
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const PlaceholderScreen(title: "Dashboard")));
-        break;
-      case 4:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen()), // ✅ Navigates to Profile Screen
-        );
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text(
+          "Recipes",
+          style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          "Recipes",
-          style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Colors.black),
@@ -436,15 +439,15 @@ class RecipesScreenState extends State<RecipesScreen> {
 
       /// Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
+        selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Recipes"),
+          BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet_below_rectangle,), label: "Logs"),
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

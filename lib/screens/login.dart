@@ -1,8 +1,17 @@
 import 'package:flutter/material.dart';
 import 'main_log_screen.dart';
+import 'biz_partner_dashboard.dart';
+import 'signup_welcome.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  LoginScreenState createState() => LoginScreenState();
+}
+
+class LoginScreenState extends State<LoginScreen> {
+  String selectedRole = "User"; // Default role
 
   @override
   Widget build(BuildContext context) {
@@ -11,13 +20,12 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          "Log In (User/Biz Partner)",
-          style: TextStyle(color: Colors.black),
+        title: Text(
+          "Login (User/Biz Partner)",
+          style: TextStyle(
+              color: Colors.green[800],
+              fontWeight: FontWeight.bold
+          ),
         ),
         centerTitle: true,
       ),
@@ -45,15 +53,38 @@ class LoginScreen extends StatelessWidget {
                 children: [
                   const Spacer(),
                   const Text(
-                    "Welcome Back! Glad\nto see you, Again!",
+                    "EATWELL",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 26,
+                      fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
                   ),
                   const SizedBox(height: 30),
+
+                  // Role Selection Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedRole,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "User", child: Text("User")),
+                      DropdownMenuItem(value: "Business Partner", child: Text("Business Partner")),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedRole = value!;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // Email TextField
                   TextField(
                     decoration: InputDecoration(
@@ -66,6 +97,7 @@ class LoginScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
+
                   // Password TextField
                   TextField(
                     obscureText: true,
@@ -78,64 +110,79 @@ class LoginScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+
                   // Forgot Password
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {},
-                      child: const Text(
+                      child: Text(
                         "Forgot Password?",
                         style: TextStyle(
-                          color: Colors.black,
+                          color: Colors.green[800],
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // Login Button with Navigation
+
+                  // Login Button with Navigation Based on Role
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: Colors.green[700],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const MainLogScreen()),
-                        );
+                        if (selectedRole == "User") {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const MainLogScreen()), // Navigate to User Dashboard
+                          );
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const BizPartnerDashboard()), // Navigate to Business Partner Dashboard
+                          );
+                        }
                       },
                       child: const Text(
-                        "Login",
+                        "Log In",
                         style: TextStyle(fontSize: 18, color: Colors.white),
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   // Register Now Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Don’t have an account? "),
                       GestureDetector(
-                        onTap: () {},
-                        child: const Text(
-                          "Register Now",
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => SignupWelcome()), // Navigate to Signup Page
+                          );
+                        },
+                        child: Text(
+                          'Register Now',
                           style: TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                              color: Colors.green[800],
+                              fontWeight: FontWeight.bold
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 250),
                 ],
               ),
             ),
