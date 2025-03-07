@@ -1,9 +1,10 @@
-// lib/screens/signup_you.dart
 import 'package:flutter/material.dart';
-import '../utils/input_validator.dart'; // Import the InputValidator
-import '../utils/date_picker.dart'; // Import the DatePicker
-import 'signup_med.dart'; // Import the next page
+import '../utils/input_validator.dart';
+import '../utils/date_picker.dart';
+import '../utils/dialog_utils.dart';
+import 'signup_med.dart';
 
+// Stateful widget for user signup page
 class SignupYou extends StatefulWidget {
   final String name;
   final String location;
@@ -19,23 +20,69 @@ class SignupYou extends StatefulWidget {
 }
 
 class SignupYouState extends State<SignupYou> {
-  String? _selectedGender; // To store the selected gender
-  final _dateController = TextEditingController(); // Controller for the age field
-  final _weightController = TextEditingController(); // Controller for the weight field
-  final _heightController = TextEditingController(); // Controller for the height field
-  String _heightUnit = 'cm'; // Default height unit
-  String _weightUnit = 'kg'; // Default weight unit
-  DateTime? _selectedDate; // To store the selected birth date
+  // User input controllers
+  String? _selectedGender;
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
+  DateTime? _selectedDate;
 
+  // Validation error states
+  bool _genderError = false;
+  bool _dateError = false;
+  bool _heightError = false;
+  bool _weightError = false;
+
+  // Opens the date picker dialog
   Future<void> _selectDate(BuildContext context) async {
-  final DateTime? picked = await DatePicker.selectDate(context);
-  if (picked != null && picked != _selectedDate) {
-    setState(() {
-      _selectedDate = picked; // Update the state with the selected date
-      _dateController.text = "${picked.toLocal()}".split(' ')[0]; // Format the date
-    });
+    final DateTime? picked = await DatePicker.selectDate(context);
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = "${picked.toLocal()}".split(' ')[0];
+        _dateError = false;
+      });
+    }
   }
-}
+
+  // Validates all input fields
+  bool _validateInputs() {
+    bool isValid = true;
+
+    // Validate gender selection
+    isValid &= InputValidator.validateField(
+      _selectedGender,
+      (error) => setState(() => _genderError = error),
+      "Please select your gender",
+    );
+
+    // Validate birthdate input
+    isValid &= InputValidator.validateField(
+      _selectedDate?.toString(),
+      (error) => setState(() => _dateError = error),
+      "Please enter your birthdate",
+    );
+
+    // Validate height input
+    isValid &= InputValidator.validateNumericField(
+      _heightController.text,
+      (error) => setState(() => _heightError = error),
+      50,
+      300,
+      "Height must be between 50 cm and 300 cm",
+    );
+
+    // Validate weight input
+    isValid &= InputValidator.validateNumericField(
+      _weightController.text,
+      (error) => setState(() => _weightError = error),
+      20,
+      500,
+      "Weight must be between 20 kg and 500 kg",
+    );
+
+    return isValid;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +92,7 @@ class SignupYouState extends State<SignupYou> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header "You" text
+            // Page Title
             Center(
               child: Text(
                 "You",
@@ -54,7 +101,7 @@ class SignupYouState extends State<SignupYou> {
             ),
             const SizedBox(height: 20),
 
-            // Progress indicator
+            // Progress indicator (step 2 of 6)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
@@ -72,29 +119,26 @@ class SignupYouState extends State<SignupYou> {
             ),
             const SizedBox(height: 30),
 
-            // Left-aligned text sections
+            // Section title
             Text(
               "Tell Us About You!",
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
 
+            // Gender Selection Buttons
             Text(
               "How do you identify?",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
-
-            // Gender button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Male Button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedGender == "Male"
-                        ? Colors.blue // Highlight if selected
-                        : const Color.fromARGB(255, 162, 191, 223),
+                    backgroundColor: _selectedGender == "Male" ? Colors.blue : const Color.fromARGB(255, 162, 191, 223),
                     padding: EdgeInsets.symmetric(horizontal: 65, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -103,6 +147,7 @@ class SignupYouState extends State<SignupYou> {
                   onPressed: () {
                     setState(() {
                       _selectedGender = 'Male';
+                      _genderError = false;
                     });
                   },
                   child: Text(
@@ -110,12 +155,10 @@ class SignupYouState extends State<SignupYou> {
                     style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
-                // Female button
+                // Female Button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _selectedGender == "Female"
-                        ? Colors.pink // Highlight if selected
-                        : const Color.fromARGB(255, 253, 199, 199),
+                    backgroundColor: _selectedGender == "Female" ? Colors.pink : const Color.fromARGB(255, 253, 199, 199),
                     padding: EdgeInsets.symmetric(horizontal: 65, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -124,6 +167,7 @@ class SignupYouState extends State<SignupYou> {
                   onPressed: () {
                     setState(() {
                       _selectedGender = 'Female';
+                      _genderError = false;
                     });
                   },
                   child: Text(
@@ -133,129 +177,91 @@ class SignupYouState extends State<SignupYou> {
                 ),
               ],
             ),
+            if (_genderError)
+              InputValidator.buildErrorMessage("Please select your gender"),
             const SizedBox(height: 25),
 
-            // birthdate label
+            // Birthdate input field with calendar icon
             Text(
               "How young are you?",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            // birthdate text field with date picker
             Row(
               children: [
+                // Birthdate Input Field
                 Expanded(
                   child: TextField(
                     controller: _dateController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
+                    decoration: InputValidator.buildInputDecoration(
                       hintText: "Enter your Birthdate",
+                      hasError: _dateError,
                     ),
-                    keyboardType: TextInputType.number,
-                    readOnly: true, // Make the field read-only
-                    onTap: () => _selectDate(context), // Show date picker on tap
+                    readOnly: true,
+                    onTap: () => _selectDate(context),
                   ),
                 ),
+                // Calendar Icon Button
                 IconButton(
                   icon: Icon(Icons.calendar_today),
-                  onPressed: () => _selectDate(context), // Show date picker on button press
+                  onPressed: () => _selectDate(context),
                 ),
               ],
             ),
+            if (_dateError)
+              InputValidator.buildErrorMessage("Please enter your birthdate"),
             const SizedBox(height: 25),
 
-            // Height label
+            // Height Field
             Text(
-              "How tall are you?",
+              "How tall are you? (in cm)",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            // Height text field with unit dropdown
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _heightController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Enter your height",
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                DropdownButton<String>(
-                  value: _heightUnit,
-                  items: ['cm', 'feet'].map((String unit) {
-                    return DropdownMenuItem<String>(
-                      value: unit,
-                      child: Text(unit),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _heightUnit = newValue!;
-                    });
-                  },
-                ),
-              ],
+            TextField(
+              controller: _heightController,
+              decoration: InputValidator.buildInputDecoration(
+                hintText: "Enter your height",
+                hasError: _heightError,
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              onChanged: (value) => setState(() => _heightError = false),
             ),
+            if (_heightError)
+              InputValidator.buildErrorMessage("Please enter a valid height (50-300 cm)"),
             const SizedBox(height: 25),
 
-            // Weight label
+            // Weight Field
             Text(
-              "What's your current weight?",
+              "What's your current weight? (in kg)",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            // Weight text field with unit dropdown
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _weightController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: "Enter your weight",
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                DropdownButton<String>(
-                  value: _weightUnit,
-                  items: ['kg', 'lbs'].map((String unit) {
-                    return DropdownMenuItem<String>(
-                      value: unit,
-                      child: Text(unit),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _weightUnit = newValue!;
-                    });
-                  },
-                ),
-              ],
+            TextField(
+              controller: _weightController,
+              decoration: InputValidator.buildInputDecoration(
+                hintText: "Enter your weight",
+                hasError: _weightError,
+              ),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+              onChanged: (value) => setState(() => _weightError = false),
             ),
+            if (_weightError)
+              InputValidator.buildErrorMessage("Please enter a valid weight (20-500 kg)"),
+            const SizedBox(height: 25),
 
             const Spacer(),
 
-            // Back and Next buttons
+            // Navigation Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Back button
+                // Back Button
                 IconButton(
                   icon: Icon(Icons.arrow_back, size: 30),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
-                // Next button
+                // Next Button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -265,45 +271,15 @@ class SignupYouState extends State<SignupYou> {
                     ),
                   ),
                   onPressed: () {
-                    // Validate inputs
-                    if (InputValidator.isFieldEmpty(_selectedGender, context, 'select', 'gender')) {
-                      return;
-                    }
-                    if (InputValidator.isFieldEmpty(_selectedDate.toString(), context, 'enter', 'height')) {
-                      return;
-                    }
+                    if (!_validateInputs()) return;
                     if (!InputValidator.isAbove18(_selectedDate!)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('You must be above 18 to sign up')),
-                      );
-                      return;
-                    }
-                    if (InputValidator.isFieldEmpty(_heightController.text, context, 'enter', 'height')) {
-                      return;
-                    }
-                    if (InputValidator.isFieldEmpty(_weightController.text, context, 'enter', 'weight')) {
-                      return;
-                    }
-
-                    // Parse height and weight
-                    final height = double.tryParse(_heightController.text) ?? 0;
-                    final weight = double.tryParse(_weightController.text) ?? 0;
-
-                    // Validate height and weight
-                    if (!InputValidator.isValidHeight(height, _heightUnit)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter a valid height')),
-                      );
-                      return;
-                    }
-                    if (!InputValidator.isValidWeight(weight, _weightUnit)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please enter a valid weight')),
+                      DialogUtils.showErrorDialog(
+                        context: context,
+                        message: 'You must be above 18 to sign up',
                       );
                       return;
                     }
 
-                    // Navigate to the SignupMed screen with the collected data
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -312,18 +288,13 @@ class SignupYouState extends State<SignupYou> {
                           location: widget.location,
                           gender: _selectedGender!,
                           birthDate: _selectedDate!,
-                          height: height,
-                          weight: weight,
-                          weightUnit: _weightUnit,
-                          heightUnit: _heightUnit,
+                          weight: double.parse(_weightController.text),
+                          height: double.parse(_heightController.text),
                         ),
                       ),
                     );
                   },
-                  child: Text(
-                    "Next",
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
+                  child: Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
                 ),
               ],
             ),

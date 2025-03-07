@@ -1,3 +1,4 @@
+// lib/screens/signup_target.dart
 import 'package:flutter/material.dart';
 import 'signup_detail.dart';
 import '../utils/calculations.dart';
@@ -9,16 +10,12 @@ class SignupTarget extends StatefulWidget {
   final DateTime birthDate;
   final double weight;
   final double height;
-  final String weightUnit;
-  final String heightUnit;
-
   final String preExisting;
   final String allergies;
-  final String goal;
 
   const SignupTarget({
-    super.key, 
-    required this.name, 
+    super.key,
+    required this.name,
     required this.location,
     required this.gender,
     required this.birthDate,
@@ -26,10 +23,7 @@ class SignupTarget extends StatefulWidget {
     required this.height,
     required this.preExisting,
     required this.allergies,
-    required this.goal,
-    required this.weightUnit,
-    required this.heightUnit,
-    });
+  });
 
   @override
   SignupTargetState createState() => SignupTargetState();
@@ -59,16 +53,11 @@ class SignupTargetState extends State<SignupTarget> {
 
   // Function to calculate recommended values
   void _calculateRecommendations() {
-    double heightInCm = widget.heightUnit == 'feet'
-        ? Calculations.convertFeetToCm(widget.height)
-        : widget.height;
-
     // Calculate ideal body weight
-    _recommendedWeight = Calculations.calculateIdealBodyWeight(widget.gender, heightInCm);
+    _recommendedWeight = Calculations.calculateIdealBodyWeight(widget.gender, widget.height);
 
     // Calculate BMR and daily calories
-    double bmr = Calculations.calculateBMR(widget.gender, _recommendedWeight, heightInCm, DateTime.now().year - widget.birthDate.year);
-    _recommendedCalories = Calculations.calculateDailyCalories(bmr, widget.goal);
+    _recommendedCalories = Calculations.calculateBMR(widget.gender, _recommendedWeight, widget.height, DateTime.now().year - widget.birthDate.year).round();
 
     // Calculate macronutrients
     Map<String, double> macros = Calculations.calculateMacronutrients(_recommendedCalories);
@@ -120,31 +109,35 @@ class SignupTargetState extends State<SignupTarget> {
     required VoidCallback onIncrease,
   }) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween, // Align items to the edges
       children: [
         Text(
           label,
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(width: 20),
-        IconButton(
-          icon: Icon(Icons.remove_circle_outline),
-          onPressed: onDecrease,
-        ),
-        SizedBox(
-          width: 80,
-          child: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
+        Row(
+          children: [
+            IconButton(
+              icon: Icon(Icons.remove_circle_outline),
+              onPressed: onDecrease,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.add_circle_outline),
-          onPressed: onIncrease,
+            SizedBox(
+              width: 80,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 10), // Add padding for better alignment
+                ),
+                textAlign: TextAlign.right, // Align text to the right
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.add_circle_outline),
+              onPressed: onIncrease,
+            ),
+          ],
         ),
       ],
     );
@@ -274,13 +267,10 @@ class SignupTargetState extends State<SignupTarget> {
                           location: widget.location,
                           gender: widget.gender,
                           birthDate: widget.birthDate,
-                          weight: double.parse(_desiredWeightController.text),
+                          weight: widget.weight,
                           height: widget.height,
-                          weightUnit: widget.weightUnit,
-                          heightUnit: widget.heightUnit,
                           preExisting: widget.preExisting,
                           allergies: widget.allergies,
-                          goal: widget.goal,
                           desiredWeight: double.parse(_desiredWeightController.text),
                           dailyCalories: int.parse(_dailyCaloriesController.text),
                           protein: double.parse(_proteinController.text),

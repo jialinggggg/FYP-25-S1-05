@@ -1,6 +1,8 @@
+// lib/screens/signup_detail.dart
 import 'package:flutter/material.dart';
 import 'signup_success.dart'; // Import the next page
-import '../services/auth_service.dart'; // Import the AuthService
+import '../services/profile_service.dart'; // Import the ProfileService
+import '../utils/input_validator.dart'; // Import the InputValidator
 
 class SignUpDetail extends StatefulWidget {
   final String name;
@@ -9,11 +11,8 @@ class SignUpDetail extends StatefulWidget {
   final DateTime birthDate;
   final double weight;
   final double height;
-  final String weightUnit;
-  final String heightUnit;
   final String preExisting;
   final String allergies;
-  final String goal;
   final double desiredWeight;
   final int dailyCalories;
   final double protein;
@@ -28,11 +27,8 @@ class SignUpDetail extends StatefulWidget {
     required this.birthDate,
     required this.weight,
     required this.height,
-    required this.weightUnit,
-    required this.heightUnit,
     required this.preExisting,
     required this.allergies,
-    required this.goal,
     required this.desiredWeight,
     required this.dailyCalories,
     required this.protein,
@@ -48,18 +44,72 @@ class SignUpDetailState extends State<SignUpDetail> {
   final _emailController = TextEditingController(); // Controller for email
   final _passwordController = TextEditingController(); // Controller for password
   bool _isLoading = false; // Track loading state
-  final AuthService _authService = AuthService(); // Instance of AuthService
+  final ProfileService _profileService = ProfileService(); // Instance of ProfileService
 
+  bool _emailError = false; // Track if email field has an error
+  bool _passwordError = false; // Track if password field has an error
+  bool _emailExistsError = false; // Track if email exists error
+
+  // Password validation rules
+  bool _hasMinLength = false;
+  bool _hasUppercase = false;
+  bool _hasNumber = false;
+  bool _hasSymbol = false;
+
+  // Function to validate password
+  void _validatePassword(String password) {
+    final validationResult = ProfileService.validatePassword(password);
+    setState(() {
+      _hasMinLength = validationResult['hasMinLength']!;
+      _hasUppercase = validationResult['hasUppercase']!;
+      _hasNumber = validationResult['hasNumber']!;
+      _hasSymbol = validationResult['hasSymbol']!;
+    });
+  }
+
+  // Function to create account
   Future<void> _createAccount() async {
     setState(() {
-      _isLoading = true;
+      _emailError = false;
+      _passwordError = false;
+      _emailExistsError = false;
     });
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
+    // Validate email
+    if (email.isEmpty || !ProfileService.isValidEmail(email)) {
+      setState(() {
+        _emailError = true;
+      });
+      return;
+    }
+
+    // Validate password
+    if (password.isEmpty || !(_hasMinLength && _hasUppercase && _hasNumber && _hasSymbol)) {
+      setState(() {
+        _passwordError = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      await _authService.createAccount(
+      // Check if email exists
+      final emailExists = await _profileService.isEmailAvailable(email);
+      if (emailExists) {
+        setState(() {
+          _emailExistsError = true;
+        });
+        return;
+      }
+
+      // Create account
+      await _profileService.createAccount(
         email: email,
         password: password,
         name: widget.name,
@@ -68,11 +118,8 @@ class SignUpDetailState extends State<SignUpDetail> {
         birthDate: widget.birthDate,
         weight: widget.weight,
         height: widget.height,
-        weightUnit: widget.weightUnit,
-        heightUnit: widget.heightUnit,
         preExisting: widget.preExisting,
         allergies: widget.allergies,
-        goal: widget.goal,
         desiredWeight: widget.desiredWeight,
         dailyCalories: widget.dailyCalories,
         protein: widget.protein,
@@ -88,6 +135,7 @@ class SignUpDetailState extends State<SignUpDetail> {
         );
       }
     } catch (e) {
+      // Delete account if creation fails
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -154,11 +202,21 @@ class SignUpDetailState extends State<SignUpDetail> {
             // Email text field
             TextField(
               controller: _emailController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputValidator.buildInputDecoration(
                 hintText: "Enter your email address",
+                hasError: _emailError || _emailExistsError,
               ),
+              onChanged: (value) {
+                setState(() {
+                  _emailError = false;
+                  _emailExistsError = false;
+                });
+              },
             ),
+            if (_emailError) // Show error message if email is invalid
+              InputValidator.buildErrorMessage("Please enter a valid email address"),
+            if (_emailExistsError) // Show error message if email already exists
+              InputValidator.buildErrorMessage("This email is already registered"),
             const SizedBox(height: 25),
 
             // Password label
@@ -171,11 +229,36 @@ class SignUpDetailState extends State<SignUpDetail> {
             // Password text field
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputValidator.buildInputDecoration(
                 hintText: "Create a strong password",
+                hasError: _passwordError,
               ),
               obscureText: true,
+              onChanged: (value) {
+                _validatePassword(value);
+                setState(() {
+                  _passwordError = false;
+                });
+              },
+            ),
+            if (_passwordError) // Show error message if password is invalid
+              InputValidator.buildErrorMessage("Please enter a valid password"),
+            const SizedBox(height: 10),
+
+            // Password guidelines
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Your password must:",
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 5),
+                _buildPasswordGuideline("Be at least 8 characters", _hasMinLength),
+                _buildPasswordGuideline("Include at least one uppercase letter", _hasUppercase),
+                _buildPasswordGuideline("Include at least one number", _hasNumber),
+                _buildPasswordGuideline("Include at least one symbol", _hasSymbol),
+              ],
             ),
             const SizedBox(height: 25),
 
@@ -214,6 +297,27 @@ class SignUpDetailState extends State<SignUpDetail> {
           ],
         ),
       ),
+    );
+  }
+
+  // Helper function to build password guidelines
+  Widget _buildPasswordGuideline(String text, bool isValid) {
+    return Row(
+      children: [
+        Icon(
+          Icons.circle,
+          size: 8,
+          color: isValid ? Colors.green : Colors.grey,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 14,
+            color: isValid ? Colors.green : Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 }
