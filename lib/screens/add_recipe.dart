@@ -65,6 +65,7 @@ class AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   /// ✅ **Save Recipe**
+  /// ✅ **Save Recipe & Pass Back to BizProductsScreen**
   void _saveRecipe() {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -81,12 +82,13 @@ class AddRecipeScreenState extends State<AddRecipeScreen> {
       "description": _descriptionController.text,
       "calories": _caloriesController.text,
       "time": _timeController.text,
-      "image": _selectedImage ?? "assets/default_image.png", // ✅ Default image if none is selected
+      "image": _selectedImage ?? "assets/default_image.png",
       "ingredients": ingredients,
       "instructions": instructions,
     };
 
-    Navigator.pop(context, newRecipe); // ✅ Passes new recipe back to RecipesScreen
+    /// ✅ **Pass the new recipe back to BizProductsScreen**
+    Navigator.pop(context, newRecipe);
   }
 
   @override
