@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'login.dart';
 
 class SignupSuccess extends StatelessWidget {
   const SignupSuccess({super.key});
@@ -18,7 +19,11 @@ class SignupSuccess extends StatelessWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushReplacementNamed(context, '/login');
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  (Route<dynamic> route) => false, // Removes all previous routes
+                );
               },
               child: const Text('Login'),
             ),
