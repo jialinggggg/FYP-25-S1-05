@@ -6,11 +6,11 @@ import 'profile_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';
 
-class MainReportDashboard extends StatefulWidget {
-  const MainReportDashboard({super.key});
+class DashboardScreen extends StatefulWidget {
+  const DashboardScreen({super.key});
 
   @override
-  MainReportDashboardState createState() => MainReportDashboardState();
+  DashboardScreenState createState() => DashboardScreenState();
 }
 
 /// Placeholder Screens for Missing Pages
@@ -32,7 +32,7 @@ class PlaceholderScreen extends StatelessWidget {
   }
 }
 
-class MainReportDashboardState extends State<MainReportDashboard> {
+class DashboardScreenState extends State<DashboardScreen> {
   /// Navigation Index
   int _selectedIndex = 3; // Dashboard is the current page
 

@@ -80,7 +80,7 @@ class ProfileScreenState extends State<ProfileScreen> {
       case 3: // Dashboard (Placeholder)
         Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainReportDashboard())
+            MaterialPageRoute(builder: (context) => const DashboardScreen())
         );
         break;
       case 4: // Profile (stay here)
