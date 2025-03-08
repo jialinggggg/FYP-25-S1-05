@@ -105,7 +105,7 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
         case 3:
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainReportDashboard()),
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
           );
           break;
         case 4:
