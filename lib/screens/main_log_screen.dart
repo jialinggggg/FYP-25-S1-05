@@ -73,7 +73,7 @@ class MainLogScreenState extends State<MainLogScreen> {
       case 3: // Dashboard
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen())
+          MaterialPageRoute(builder: (context) => const MainReportDashboard())
         );
         break;
       case 4: // Profile
@@ -117,9 +117,9 @@ class MainLogScreenState extends State<MainLogScreen> {
   /// Function to Fetch Data from Supabase
   Future<void> _fetchLoggedMeals() async {
     try {
-      // Ensure you select all columns (including 'id')
+      // Fetch from meal_entries table.
       final data = await Supabase.instance.client
-          .from('foods')
+          .from('meal_entries')
           .select(); // selects all columns by default
       if ((data as List).isEmpty) {
         print('No data found.');
@@ -141,87 +141,115 @@ class MainLogScreenState extends State<MainLogScreen> {
 
   /// Add Food Function with Supabase
   void _addFood(String mealType) async {
-    final List<Map<String, dynamic>>? selectedFoods = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddFoodScreen(
-          mealType: mealType,
-          existingFoods: List.from(loggedMeals[mealType]!),
-        ),
+  final List<Map<String, dynamic>>? selectedFoods = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => AddFoodScreen(
+        mealType: mealType,
+        existingFoods: List.from(loggedMeals[mealType]!),
       ),
-    );
+    ),
+  );
 
-    if (selectedFoods != null && selectedFoods.isNotEmpty) {
-      for (var food in selectedFoods) {
-        int foodCalories = int.parse(food["calories"].split(" ")[0]);
-        double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
-        double foodProtein = double.parse(food["protein"].split(" ")[0]);
-        double foodFat = double.parse(food["fat"].split(" ")[0]);
+  if (selectedFoods != null && selectedFoods.isNotEmpty) {
+    for (var food in selectedFoods) {
+      // Safely parse values; if null or unparsable, default to 0 or 0.0.
+      int foodCalories = int.tryParse(
+              food["meal_calories"]?.toString().split(" ")[0] ?? "") ??
+          0;
+      double foodCarbs = double.tryParse(
+              food["meal_carbs"]?.toString().split(" ")[0] ?? "") ??
+          0.0;
+      double foodProtein = double.tryParse(
+              food["meal_protein"]?.toString().split(" ")[0] ?? "") ??
+          0.0;
+      double foodFat = double.tryParse(
+              food["meal_fats"]?.toString().split(" ")[0] ?? "") ??
+          0.0;
 
-        // Check if the food already exists locally
-        if (!loggedMeals[mealType]!.any((f) => f["name"] == food["name"])) {
-          // First update local state
-          setState(() {
-            loggedMeals[mealType]!.add(food);
-            mealCalories[mealType] =
-                (mealCalories[mealType] ?? 0) + foodCalories;
-            totalCaloriesEaten += foodCalories;
-            remainingCalories = (totalDailyGoal - totalCaloriesEaten)
-                .clamp(0, totalDailyGoal);
-            totalCarbs += foodCarbs;
-            totalProtein += foodProtein;
-            totalFat += foodFat;
-          });
+      // Check if the food already exists locally using the meal_name key.
+      if (!loggedMeals[mealType]!
+          .any((f) => f["meal_name"] == food["meal_name"])) {
+        // First update local state.
+        setState(() {
+          loggedMeals[mealType]!.add(food);
+          mealCalories[mealType] =
+              (mealCalories[mealType] ?? 0) + foodCalories;
+          totalCaloriesEaten += foodCalories;
+          remainingCalories = (totalDailyGoal - totalCaloriesEaten)
+              .clamp(0, totalDailyGoal);
+          totalCarbs += foodCarbs;
+          totalProtein += foodProtein;
+          totalFat += foodFat;
+        });
 
-          // Then insert the food into Supabase and update the local record with the returned id
-          try {
-            final inserted = await Supabase.instance.client
-                .from('foods')
-                .insert({
-              'user_id': Supabase.instance.client.auth.currentUser?.id,
-              'name': food["name"],
-              'calories': food["calories"],
-              'carbs': food["carbs"],
-              'protein': food["protein"],
-              'fat': food["fat"],
-              'meal_type': mealType,
-            }).select();
+        // Ensure that the user is authenticated.
+        String? userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId == null) {
+          print('User is not authenticated. Please sign in.');
+          // Optionally, navigate to the login screen or show a dialog.
+          return;
+        }
 
-            print('Food added to Supabase: $inserted');
+        // Insert into the meal_entries table.
+        try {
+          final inserted = await Supabase.instance.client
+              .from('meal_entries')
+              .insert({
+            'user_id': userId,
+            'meal_name': food['meal_name'] ?? '',
+            'meal_calories': foodCalories,
+            'meal_carbs': foodCarbs,
+            'meal_protein': foodProtein,
+            'meal_fats': foodFat,
+            'meal_type': mealType,
+          }).select();
 
-            // Make sure to update the local food item with its generated id.
-            if (inserted.isNotEmpty) {
-              setState(() {
-                // Update the last inserted food with its id from Supabase
-                loggedMeals[mealType]!.last['id'] = inserted.first['id'];
-              });
-            }
-          } catch (e) {
-            print('Error adding food: $e');
+          print('Food added to Supabase: $inserted');
+
+          // Update the last inserted food with its primary key (meal_id) from Supabase.
+          if (inserted.isNotEmpty) {
+            setState(() {
+              loggedMeals[mealType]!.last['meal_id'] =
+                  inserted.first['meal_id'];
+            });
           }
+        } catch (e) {
+          print('Error adding food: $e');
         }
       }
     }
   }
+}
+
 
   /// Remove Food Function
   Future<void> _removeFood(String mealType, int index) async {
-    // Get the food to remove
+    // Get the food to remove.
     final food = loggedMeals[mealType]![index];
-    final foodId = food['id']; // Make sure 'id' exists
+    // Use the primary key from your table.
+    final foodId = food['meal_id'];
 
     if (foodId == null) {
       print('Food id is null, cannot delete.');
       return;
     }
 
-    // Parse the nutrition info to update local totals
-    int foodCalories = int.parse(food["calories"].split(" ")[0]);
-    double foodCarbs = double.parse(food["carbs"].split(" ")[0]);
-    double foodProtein = double.parse(food["protein"].split(" ")[0]);
-    double foodFat = double.parse(food["fat"].split(" ")[0]);
+    // Safely parse the nutrition info to update local totals.
+    int foodCalories = int.tryParse(
+            food["meal_calories"]?.toString().split(" ")[0] ?? "") ??
+        0;
+    double foodCarbs = double.tryParse(
+            food["meal_carbs"]?.toString().split(" ")[0] ?? "") ??
+        0.0;
+    double foodProtein = double.tryParse(
+            food["meal_protein"]?.toString().split(" ")[0] ?? "") ??
+        0.0;
+    double foodFat = double.tryParse(
+            food["meal_fats"]?.toString().split(" ")[0] ?? "") ??
+        0.0;
 
-    // First update the local state
+    // First update the local state.
     setState(() {
       totalCaloriesEaten =
           (totalCaloriesEaten - foodCalories).clamp(0, totalDailyGoal);
@@ -231,19 +259,20 @@ class MainLogScreenState extends State<MainLogScreen> {
       totalProtein = (totalProtein - foodProtein).clamp(0.0, double.infinity);
       totalFat = (totalFat - foodFat).clamp(0.0, double.infinity);
 
-      mealCalories[mealType] =
-          (mealCalories[mealType]! - foodCalories).clamp(0, double.infinity).toInt();
+      mealCalories[mealType] = (mealCalories[mealType]! - foodCalories)
+          .clamp(0, double.infinity)
+          .toInt();
 
-      // Remove the item from the local list
+      // Remove the item from the local list.
       loggedMeals[mealType]?.removeAt(index);
     });
 
-    // Then make the call to Supabase to delete the row from the 'foods' table
+    // Delete from the correct table: meal_entries.
     try {
       final response = await Supabase.instance.client
-          .from('foods')
+          .from('meal_entries')
           .delete()
-          .eq('id', foodId);
+          .eq('meal_id', foodId);
       print('Food deleted from Supabase: $response');
     } catch (error) {
       print('Error deleting food from Supabase: $error');
@@ -401,7 +430,7 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-  /// Builds Macro Indicator Widgets
+  /// Builds Macro Indicator Widgets.
   Widget _buildMacroIndicator(double value, String label, Color color) {
     return Column(
       children: [
@@ -488,9 +517,7 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-
-
-  /// Meal Tile Widget
+  /// Meal Tile Widget.
   Widget _buildMealTile(String mealType, int kcal, String iconPath) {
     return Card(
       child: ExpansionTile(
@@ -510,10 +537,9 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-  /// Meal List Widget
+  /// Meal List Widget.
   List<Widget> _buildMealList(String mealType) {
-    if (loggedMeals[mealType] == null ||
-        loggedMeals[mealType]!.isEmpty) {
+    if (loggedMeals[mealType] == null || loggedMeals[mealType]!.isEmpty) {
       return const [
         Padding(
           padding: EdgeInsets.all(8.0),
@@ -524,19 +550,19 @@ class MainLogScreenState extends State<MainLogScreen> {
         ),
       ];
     }
-
     return loggedMeals[mealType]!.asMap().entries.map((entry) {
       int index = entry.key;
       Map<String, dynamic> food = entry.value;
-
       return ListTile(
-        title: Text(food["name"],
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          food["meal_name"] ?? '',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
-            "${food["calories"]} - ${food["carbs"]} Carbs, ${food["protein"]} Protein, ${food["fat"]} Fat"),
+          "${food["meal_calories"] ?? 0} - ${food["meal_carbs"] ?? 0} Carbs, ${food["meal_protein"] ?? 0} Protein, ${food["meal_fats"] ?? 0} Fat",
+        ),
         trailing: IconButton(
-          icon: const Icon(Icons.remove_circle_outline,
-              color: Colors.red),
+          icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
           onPressed: () => _removeFood(mealType, index),
         ),
       );
