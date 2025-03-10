@@ -1,31 +1,47 @@
-// lib/screens/signup_welcome.dart
 import 'package:flutter/material.dart';
-import 'package:dropdown_search/dropdown_search.dart'; // Import the package
-import '../services/country_service.dart'; // Import the CountryService
-import '../utils/input_validator.dart'; // Import the InputValidator
-import 'signup_you.dart'; // Import the next page
+import 'package:dropdown_search/dropdown_search.dart';
+import '../services/country_service.dart';
+import '../utils/input_validator.dart';
+import '../utils/dialog_utils.dart';
+import 'signup_you.dart';
 
 class SignupWelcome extends StatefulWidget {
   const SignupWelcome({super.key});
 
   @override
-  SignupNameState createState() => SignupNameState();
+  SignupWelcomeState createState() => SignupWelcomeState();
 }
 
-class SignupNameState extends State<SignupWelcome> {
+class SignupWelcomeState extends State<SignupWelcome> {
+  // User input controllers
+  final CountryService _countryService = CountryService();
+  final TextEditingController _nameController = TextEditingController();
   String? _selectedCountry;
   List<String> countries = [];
-  final _nameController = TextEditingController(); // Controller for the name field
-  bool _isLoading = true; // Track loading state for countries
-  final CountryService _countryService = CountryService(); // Create an instance of CountryService
+
+  // Validation error states
+  bool _isLoading = true;
+  bool _nameError = false;
+  bool _countryError = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchCountries();
+    _fetchCountries(); // Load country list
+    _nameController.addListener(() {
+      if (_nameController.text.isNotEmpty) {
+        setState(() => _nameError = false);
+      }
+    });
   }
 
-  // Fetch country data using CountryService
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  // Fetch list of countries from service
   Future<void> _fetchCountries() async {
     try {
       final countryNames = await _countryService.fetchCountries();
@@ -37,14 +53,32 @@ class SignupNameState extends State<SignupWelcome> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching countries: $e')),
+        setState(() => _isLoading = false);
+        DialogUtils.showErrorDialog(
+          context: context,
+          message: 'Error fetching countries: $e',
         );
       }
     }
+  }
+
+  // Validate user inputs
+  bool _validateInputs() {
+    bool isValid = true;
+
+    isValid &= InputValidator.validateField(
+      _nameController.text,
+      (error) => setState(() => _nameError = error),
+      "Please enter your name",
+    );
+
+    isValid &= InputValidator.validateField(
+      _selectedCountry,
+      (error) => setState(() => _countryError = error),
+      "Please select your country",
+    );
+
+    return isValid;
   }
 
   @override
@@ -55,7 +89,7 @@ class SignupNameState extends State<SignupWelcome> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome text
+            // Page Title
             Center(
               child: Text(
                 "Welcome",
@@ -64,7 +98,7 @@ class SignupNameState extends State<SignupWelcome> {
             ),
             const SizedBox(height: 20),
 
-            // Progress indicator
+            // Progress indicator (step 1 of 6)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
@@ -82,48 +116,46 @@ class SignupNameState extends State<SignupWelcome> {
             ),
             const SizedBox(height: 30),
 
-            // Left-aligned text sections
+            // Section title
             Text(
               "Let’s get to know you!",
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 30),
 
-            // Preferred name label
+            // Name Field
             Text(
               "What should we call you?",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            // Text field for name
             TextField(
               controller: _nameController,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputValidator.buildInputDecoration(
                 hintText: "Enter your preferred name",
+                hasError: _nameError,
               ),
             ),
+            if (_nameError)
+              InputValidator.buildErrorMessage("Please enter your name"),
             const SizedBox(height: 30),
 
-            // Location label
+            // Country Selection Dropdown
             Text(
               "Where are you from?",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-
-            // DropdownSearch for selecting country
-            Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey), // Adds border around the dropdown
-                borderRadius: BorderRadius.circular(8), // Optional: rounds the corners
-              ),
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator()) // Show loading indicator while data is being fetched
-                  : DropdownSearch<String>(
+            _isLoading
+                ? const Center(child: CircularProgressIndicator()) // Show loading spinner
+                : Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: DropdownSearch<String>(
                       popupProps: PopupProps.menu(
-                        showSearchBox: true, // Enable search functionality
+                        showSearchBox: true,
                         searchFieldProps: TextFieldProps(
                           decoration: InputDecoration(
                             hintText: "Search for a country",
@@ -141,27 +173,26 @@ class SignupNameState extends State<SignupWelcome> {
                       onChanged: (String? newValue) {
                         setState(() {
                           _selectedCountry = newValue;
+                          _countryError = false;
                         });
                       },
                       selectedItem: _selectedCountry,
                     ),
-            ),
+                  ),
+            if (_countryError)
+              InputValidator.buildErrorMessage("Please select your country"),
             const SizedBox(height: 30),
 
-            const Spacer(),
+            const Spacer(), // Pushes button to bottom
 
-            // Back and Next buttons
+            // Navigation Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Back button
                 IconButton(
                   icon: Icon(Icons.arrow_back, size: 30),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
-                // Next button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -171,15 +202,7 @@ class SignupNameState extends State<SignupWelcome> {
                     ),
                   ),
                   onPressed: () {
-                    // Validate inputs using InputValidator
-                    if (InputValidator.isFieldEmpty(_nameController.text, context, 'name')) {
-                      return;
-                    }
-                    if (InputValidator.isFieldEmpty(_selectedCountry, context, 'country')) {
-                      return;
-                    }
-
-                    // Navigate to the SignupYou screen with the collected data
+                    if (!_validateInputs()) return; // Stop if inputs are invalid
                     Navigator.push(
                       context,
                       MaterialPageRoute(

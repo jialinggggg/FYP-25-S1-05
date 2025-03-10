@@ -1,74 +1,104 @@
-import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:nutri_app/screens/profile_screen.dart';
+import 'package:nutri_app/screens/report_nutri.dart';
 import 'orders_screen.dart';
-import 'profile_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';
+import 'body_stat.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
-class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+class MainReportDashboard extends StatefulWidget {
+  const MainReportDashboard({super.key});
 
   @override
-  DashboardScreenState createState() => DashboardScreenState();
+  State<MainReportDashboard> createState() => _MainReportDashboardState();
 }
 
-/// Placeholder Screens for Missing Pages
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
+class _MainReportDashboardState extends State<MainReportDashboard> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  DateTime? _latestNutritionDate;
+  int? _latestCalories;
+  DateTime? _latestBodyStatDate;
+  double? _latestBMI;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          "$title Page Coming Soon...",
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _fetchNutritionData();
+    _fetchBodyStatData();
   }
-}
 
-class DashboardScreenState extends State<DashboardScreen> {
-  /// Navigation Index
-  int _selectedIndex = 3; // Dashboard is the current page
+  Future<void> _fetchNutritionData() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
 
-  /// Navigation Logic
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+      // Fetch the latest date with meal entries
+      final latestDateResponse = await _supabase
+          .from('meal_entries')
+          .select('created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(1);
 
-    switch (index) {
-      case 0: // Orders
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OrdersScreen())
-        );
-        break;
-      case 1: // Recipes
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RecipesScreen())
-        );
-        break;
-      case 2: // Log
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainLogScreen())
-        );
-        break;
-      case 3: // Dashboard  (stay here)
-        break;
-      case 4: // Profile
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen())
-        );
-        break;
+      if (latestDateResponse.isEmpty) return;
+
+      final latestDate = DateTime.parse(latestDateResponse[0]['created_at'] as String);
+      final startOfDay = DateTime(latestDate.year, latestDate.month, latestDate.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      // Fetch all meal entries for the latest day
+      final response = await _supabase
+          .from('meal_entries')
+          .select('meal_calories, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', startOfDay.toIso8601String())
+          .lt('created_at', endOfDay.toIso8601String());
+
+      if (response.isNotEmpty) {
+        // Calculate total calories for the day
+        int totalCalories = 0;
+        for (var entry in response) {
+          totalCalories += (entry['meal_calories'] as num).toInt();
+        }
+
+        setState(() {
+          _latestCalories = totalCalories;
+          _latestNutritionDate = latestDate;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching nutrition data: $e')),
+      );
+    }
+  }
+
+  Future<void> _fetchBodyStatData() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final response = await _supabase
+          .from('user_measurements')
+          .select('bmi, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        setState(() {
+          _latestBMI = (response[0]['bmi'] as num).toDouble();
+          _latestBodyStatDate = DateTime.parse(response[0]['created_at'] as String);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching body stats: $e')),
+      );
     }
   }
 
@@ -76,140 +106,144 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Dashboard",
-          style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('Health Dashboard'),
+        automaticallyImplyLeading: false,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                "Weekly Summary",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-              ),
-              const SizedBox(height: 10),
-              _buildLineChart(),
-              const SizedBox(height: 20),
-              const Text(
-                "Macronutrient Breakdown",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-              ),
-              const SizedBox(height: 10),
-              _buildPieChart(),
-            ],
-          ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildDashboardButton(
+              icon: Icons.restaurant,
+              title: 'Nutrition',
+              date: _latestNutritionDate,
+              value: _latestCalories?.toStringAsFixed(0) ?? '--',
+              unit: 'kcal',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => NutritionReportScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _buildDashboardButton(
+              icon: Icons.monitor_heart,
+              title: 'Body Stat',
+              date: _latestBodyStatDate,
+              value: _latestBMI?.toStringAsFixed(1) ?? '--',
+              unit: 'BMI',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HealthReportScreen()),
+                );
+              },
+            ),
+          ],
         ),
       ),
-      // Bottom Navigation Bar
+      /// Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.green,
+        selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        currentIndex: 3,
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const OrdersScreen()));
+          } else if (index == 1) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const RecipesScreen()));
+          } else if (index == 2) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const MainLogScreen()));
+          } else if (index == 4) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+          }
+        },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet_below_rectangle,), label: "Logs"),
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: "Log"),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
     );
   }
-  /// Line Chart for Weekly Summary
-  Widget _buildLineChart() {
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(show: false),
-          titlesData: FlTitlesData(
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 1,
-                getTitlesWidget: (value, meta) {
-                  List<String> days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-                  return Text(days[value.toInt()], style: const TextStyle(fontSize: 14));
-                },
-                reservedSize: 24,
-              ),
-            ),
-          ),
-          borderData: FlBorderData(show: true),
-          lineBarsData: [
-            LineChartBarData(
-              spots: [
-                const FlSpot(0, 1920),
-                const FlSpot(1, 2300),
-                const FlSpot(2, 2044),
-                const FlSpot(3, 1970),
-                const FlSpot(4, 2087),
-                const FlSpot(5, 1994),
-                const FlSpot(6, 2060),
-              ],
-              isCurved: true,
-              barWidth: 3,
-              color: Colors.blue,
-              dotData: FlDotData(show: true),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  /// Pie Chart for Macronutrient Breakdown
-  Widget _buildPieChart() {
-    return Container(
-      height: 400,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(10),
+  Widget _buildDashboardButton({
+    required IconData icon,
+    required String title,
+    required DateTime? date,
+    required String value,
+    required String unit,
+    required VoidCallback onPressed,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: PieChart(
-        PieChartData(
-          sections: [
-            PieChartSectionData(
-              value: 234,
-              title: "Carbs\n23.4%",
-              color: Colors.amber[800],
-              radius: 100,
-              titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            PieChartSectionData(
-              value: 208,
-              title: "Fats\n20.8%",
-              color: Colors.lightBlue[800],
-              radius: 100,
-              titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-            PieChartSectionData(
-              value: 416,
-              title: "Proteins\n41.6%",
-              color: Colors.purple[800],
-              radius: 100,
-              titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
-          ],
-          sectionsSpace: 2,
-          centerSpaceRadius: 50,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, size: 40, color: Colors.green),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "Latest:",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      date != null 
+                          ? DateFormat('MMM dd, yyyy').format(date)
+                          : 'No data',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    unit,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

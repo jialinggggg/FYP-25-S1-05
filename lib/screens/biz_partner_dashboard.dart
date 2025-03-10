@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'add_recipe.dart';
 import 'biz_profile_screen.dart';
+import 'biz_products_screen.dart';
 
 
 class BizPartnerDashboard extends StatefulWidget {
@@ -59,10 +60,10 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
         case 0:
           break; // Stay on Recipes screen
         case 1:
-          //Navigator.pushReplacement(
-            //context,
-            //MaterialPageRoute(builder: (context) => const BizProductsScreen()),
-          //);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const BizProductsScreen()),
+          );
           break;
         case 2:
 

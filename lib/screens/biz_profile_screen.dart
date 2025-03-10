@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login.dart';
 import 'biz_partner_dashboard.dart'; // ✅ Dashboard for Recipes
-// import 'biz_products_screen.dart'; // (Temporary Commented Out Until Created)
+import 'biz_products_screen.dart';
 // import 'biz_orders_screen.dart'; // (Temporary Commented Out Until Created)
 
 class BizProfileScreen extends StatefulWidget {
@@ -101,7 +101,7 @@ class BizProfileScreenState extends State<BizProfileScreen> {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizPartnerDashboard()));
           break;
         case 1:
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizProductsScreen())); // ✅ Uncomment when BizProductsScreen is ready
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizProductsScreen())); 
           break;
         case 2:
         // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen())); // ✅ Uncomment when BizOrdersScreen is ready

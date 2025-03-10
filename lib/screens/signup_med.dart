@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'signup_goal.dart';
+import '../utils/input_validator.dart';
+import '../utils/widget_utils.dart';
+import 'signup_target.dart';
 
 class SignupMed extends StatefulWidget {
   final String name;
   final String location;
   final String gender;
-  final int age;
+  final DateTime birthDate;
   final double weight;
   final double height;
 
   const SignupMed({
-    super.key, 
-    required this.name, 
+    super.key,
+    required this.name,
     required this.location,
     required this.gender,
-    required this.age,
+    required this.birthDate,
     required this.weight,
     required this.height,
   });
@@ -24,11 +26,50 @@ class SignupMed extends StatefulWidget {
 }
 
 class SignupMedState extends State<SignupMed> {
-  final _preExistingController = TextEditingController(); // Controller for the pre-existing conditions field
-  final _allergiesController = TextEditingController(); // Controller for the allergies field
+  final TextEditingController _preExistingController = TextEditingController();
+  final TextEditingController _allergiesController = TextEditingController();
 
-  String? _preExistingDropdownValue; // Dropdown value for pre-existing conditions
-  String? _allergiesDropdownValue; // Dropdown value for allergies
+  String? _preExistingDropdownValue;
+  String? _allergiesDropdownValue;
+
+  bool _preExistingError = false;
+  bool _allergiesError = false;
+  bool _preExistingInputError = false;
+  bool _allergiesInputError = false;
+
+  bool _validateInputs() {
+    bool isValid = true;
+
+    isValid &= InputValidator.validateField(
+      _preExistingDropdownValue,
+      (error) => setState(() => _preExistingError = error),
+      "Please select an option",
+    );
+
+    if (_preExistingDropdownValue == 'Yes') {
+      isValid &= InputValidator.validateField(
+        _preExistingController.text,
+        (error) => setState(() => _preExistingInputError = error),
+        "Please enter your pre-existing conditions",
+      );
+    }
+
+    isValid &= InputValidator.validateField(
+      _allergiesDropdownValue,
+      (error) => setState(() => _allergiesError = error),
+      "Please select an option",
+    );
+
+    if (_allergiesDropdownValue == 'Yes') {
+      isValid &= InputValidator.validateField(
+        _allergiesController.text,
+        (error) => setState(() => _allergiesInputError = error),
+        "Please enter your allergies",
+      );
+    }
+
+    return isValid;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +79,6 @@ class SignupMedState extends State<SignupMed> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header "Medical" text
             Center(
               child: Text(
                 "Medical History",
@@ -65,103 +105,102 @@ class SignupMedState extends State<SignupMed> {
             ),
             const SizedBox(height: 30),
 
-            // Left-aligned text sections
             Text(
               "Help Us Understand Your Health Needs!",
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
 
-            // medical conditions label
-            Text(
-              "Do you have any pre-existing medical conditions?",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // Dropdown for pre-existing conditions
-            DropdownButton<String>(
+            // Pre-existing Conditions
+            WidgetUtils.buildDropdown(
+              label: "Do you have any pre-existing medical conditions?",
               value: _preExistingDropdownValue,
-              hint: Text("Select an option"),
+              items: const ['No', 'Yes'],
               onChanged: (String? newValue) {
                 setState(() {
                   _preExistingDropdownValue = newValue;
+                  _preExistingError = false;
                 });
               },
-              items: <String>['No', 'Yes']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+              hasError: _preExistingError,
+              errorMessage: "Please select an option",
             ),
             const SizedBox(height: 10),
 
-            // Show text box if "Yes" is selected for pre-existing conditions
             if (_preExistingDropdownValue == 'Yes')
-              TextField(
-                controller: _preExistingController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "Please list your pre-existing conditions:",
-                ),
-                keyboardType: TextInputType.text,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Please list your pre-existing conditions (separate with ',' if more than one):",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _preExistingController,
+                    decoration: InputValidator.buildInputDecoration(
+                      hintText: "e.g., Diabetes, Hypertension",
+                      hasError: _preExistingInputError,
+                    ),
+                    keyboardType: TextInputType.text,
+                    onChanged: (value) => setState(() => _preExistingInputError = false),
+                  ),
+                  if (_preExistingInputError)
+                    InputValidator.buildErrorMessage("Please enter your pre-existing conditions"),
+                ],
               ),
             const SizedBox(height: 25),
 
-            // allergies label
-            Text(
-              "Do you have any known allergies?",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-
-            // Dropdown for allergies
-            DropdownButton<String>(
+            // Allergies
+            WidgetUtils.buildDropdown(
+              label: "Do you have any known allergies?",
               value: _allergiesDropdownValue,
-              hint: Text("Select an option"),
+              items: const ['No', 'Yes'],
               onChanged: (String? newValue) {
                 setState(() {
                   _allergiesDropdownValue = newValue;
+                  _allergiesError = false;
                 });
               },
-              items: <String>['No', 'Yes']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
+              hasError: _allergiesError,
+              errorMessage: "Please select an option",
             ),
             const SizedBox(height: 10),
 
-            // Show text box if "Yes" is selected for allergies
             if (_allergiesDropdownValue == 'Yes')
-              TextField(
-                controller: _allergiesController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: "Please list your allergies:",
-                ),
-                keyboardType: TextInputType.text,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Please list your allergies (separate with ',' if more than one):",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _allergiesController,
+                    decoration: InputValidator.buildInputDecoration(
+                      hintText: "e.g., Peanuts, Shellfish",
+                      hasError: _allergiesInputError,
+                    ),
+                    keyboardType: TextInputType.text,
+                    onChanged: (value) => setState(() => _allergiesInputError = false),
+                  ),
+                  if (_allergiesInputError)
+                    InputValidator.buildErrorMessage("Please enter your allergies"),
+                ],
               ),
             const SizedBox(height: 25),
 
             const Spacer(),
 
-            // Back and Next buttons
+            // Next Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Back button
                 IconButton(
                   icon: Icon(Icons.arrow_back, size: 30),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
+                  onPressed: () => Navigator.pop(context),
                 ),
-                // Next button
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
@@ -171,20 +210,20 @@ class SignupMedState extends State<SignupMed> {
                     ),
                   ),
                   onPressed: () {
-                    /// Navigate to the SignupGoal screen
+                    if (!_validateInputs()) return;
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SignupGoal(
+                        builder: (context) => SignupTarget(
                           name: widget.name,
                           location: widget.location,
                           gender: widget.gender,
-                          age: widget.age,
+                          birthDate: widget.birthDate,
                           weight: widget.weight,
                           height: widget.height,
-                          preExisting: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : "No",
-                          allergies: _allergiesDropdownValue == 'Yes' ? _allergiesController.text : "No",
-                        )
+                          preExisting: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : 'NA',
+                          allergies: _allergiesDropdownValue == 'Yes' ? _allergiesController.text : 'NA',
+                        ),
                       ),
                     );
                   },

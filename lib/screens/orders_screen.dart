@@ -59,7 +59,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       case 3: // Dashboard (Placeholder)
         Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen())
+            MaterialPageRoute(builder: (context) => const MainReportDashboard ())
         );
         break;
       case 4: // Profile
