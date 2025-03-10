@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'main_log_screen.dart';
-import 'signup_welcome.dart'; // Import SignupWelcome screen
+import 'signup_type.dart'; // Import SignupWelcome screen
 import '../services/auth_service.dart'; // Import AuthService
 import '../utils/dialog_utils.dart'; // Import DialogUtils
 import '../utils/input_validator.dart'; // Import InputValidator
 import 'biz_partner_dashboard.dart'; // Import BizPartnerDashboard screen
-
-
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,17 +14,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  // Controllers for email and password input fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthService(); // Authentication service instance
   bool _isLoading = false; // Track loading state
-  String _selectedUserType = 'User';
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
-    // Validate inputs using InputValidator
+    // Validate email input
     if (!InputValidator.validateField(
       email,
       (error) {
@@ -42,6 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // Validate password input
     if (!InputValidator.validateField(
       password,
       (error) {
@@ -62,22 +61,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-  // Attempt to log in using AuthService
-  await _authService.login(email, password);
+      // Attempt to log in using AuthService
+      final userRole = await _authService.login(email, password);
 
-  // Determine destination based on user type
-  final destination = _selectedUserType == "User"
-      ? const MainLogScreen()
-      : const BizPartnerDashboard();
+      // Check if the user account is active
+      if (userRole['status'] != 'active') {
+        throw Exception('Your account is not active. Please contact support.');
+      }
 
-  // Navigate to the appropriate screen
-  if (mounted) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => destination),
-    );
-  }
-} catch (e) {
+      // Determine destination based on user type
+      final destination = userRole['type'] == "user"
+          ? const MainLogScreen()
+          : const BizPartnerDashboard();
+
+      // Navigate to the appropriate screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => destination),
+        );
+      }
+    } catch (e) {
       // Show error message if login fails
       if (mounted) {
         DialogUtils.showErrorDialog(
@@ -102,10 +106,6 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
           "Login",
           style: TextStyle(color: Colors.black),
@@ -136,6 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    // Welcome text
                     const Text(
                       "Welcome Back! Glad to see you, Again!",
                       textAlign: TextAlign.left,
@@ -146,30 +147,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 30),
-                    // Role Selection Dropdown
-                  DropdownButtonFormField<String>(
-                    value: _selectedUserType,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: "User", child: Text("User")),
-                      DropdownMenuItem(value: "Business Partner", child: Text("Business Partner")),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedUserType = value!;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
 
-
-                    // Email TextField
+                    // Email input field
                     TextField(
                       controller: _emailController,
                       decoration: InputValidator.buildInputDecoration(
@@ -179,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password TextField
+                    // Password input field
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
@@ -188,27 +167,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         hasError: false, // No error by default
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 100),
 
-                    // Forgot Password
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // Add forgot password functionality here
-                        },
-                        child: const Text(
-                          "Forgot Password?",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Login Button with Navigation
+                    // Login Button with loading state
                     SizedBox(
                       width: double.infinity,
                       height: 55,
@@ -232,17 +193,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Register Now Link (Underlined & Linked)
+                    // Register Now Link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text("Don’t have an account? "),
                         GestureDetector(
                           onTap: () {
-                            // Navigate to SignupWelcome screen
+                            // Navigate to SignupType screen
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const SignupWelcome()),
+                              MaterialPageRoute(builder: (context) => const SignupType()),
                             );
                           },
                           child: const Text(

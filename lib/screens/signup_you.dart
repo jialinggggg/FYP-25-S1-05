@@ -101,13 +101,13 @@ class SignupYouState extends State<SignupYou> {
             ),
             const SizedBox(height: 20),
 
-            // Progress indicator (step 2 of 6)
+            // Progress indicator (step 2 of 5)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                6,
+                5,
                 (index) => Container(
-                  width: 55,
+                  width: 68,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(

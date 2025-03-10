@@ -91,9 +91,9 @@ class SignupMedState extends State<SignupMed> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                6,
+                5,
                 (index) => Container(
-                  width: 55,
+                  width: 68,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(

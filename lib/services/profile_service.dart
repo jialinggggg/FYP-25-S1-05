@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/calculations.dart';
 
 class ProfileService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -37,7 +38,7 @@ class ProfileService {
   }
 
   // Create a user account and insert data into the database
-  Future<void> createAccount({
+  Future<void> createUserAccount({
     required String email,
     required String password,
     required String name,
@@ -73,6 +74,13 @@ class ProfileService {
       final birthDateString = birthDate.toIso8601String();
 
       // Insert profile data
+      await _supabase.from('user_roles').insert({
+        'id':userId,
+        'email': email,
+        'type': "user",
+        'status': "active", 
+      });
+
       await _supabase.from('user_profiles').insert({
         'user_id': userId,
         'name': name,
@@ -86,6 +94,8 @@ class ProfileService {
       await _supabase.from('user_measurements').insert({
         'user_id': userId,
         'weight': weight,
+        'height': height,
+        'bmi': Calculations.calculateBMI(weight, height),
         'created_at': DateTime.now().toIso8601String(),
       });
 
@@ -250,5 +260,53 @@ class ProfileService {
         .select('weight, height, bmi, created_at')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
+  }
+
+    // Create a business account and insert data into the database
+  Future<void> createBusinessAccount({
+    required String email,
+    required String password,
+    required String name,
+    required String registration,
+    required String country,
+    required String address,
+    required String type,
+    required String description,
+  }) async {
+    try {
+      // Create business account with Supabase Auth
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw Exception('Business not created');
+      }
+
+      // Get the auto-generated UUID from the user object
+      final userId = user.id;
+
+      // Insert profile data
+      await _supabase.from('user_roles').insert({
+        'id':userId,
+        'email': email,
+        'type': "business",
+        'status': "pending", 
+      });
+
+      await _supabase.from('business_profile').insert({
+        'id': userId,
+        'name': name,
+        'registration_no': registration,
+        'country': country,
+        'address': address,
+        'type': type,
+        'description': description,
+      });
+    } catch (error) {
+      throw Exception('Unable to create account: $error');
+    }
   }
 }

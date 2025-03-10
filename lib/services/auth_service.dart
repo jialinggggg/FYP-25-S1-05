@@ -1,11 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase;
 
-  // Function to log in a user
-  Future<void> login(String email, String password) async {
+  // Initialize _supabase in the constructor
+  AuthService() : _supabase = Supabase.instance.client;
+
+  // Function to log in a user and fetch their role and status
+  Future<Map<String, String>> login(String email, String password) async {
     try {
+      // Sign in with email and password
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
@@ -14,6 +18,19 @@ class AuthService {
       if (response.user == null) {
         throw Exception('Login failed: User not found');
       }
+
+      // Fetch user role and status from the "user_roles" table
+      final userRoleResponse = await _supabase
+          .from('user_roles')
+          .select('type, status')
+          .eq('email', email)
+          .single();
+
+      // Return the user's role and status
+      return {
+        'type': userRoleResponse['type'] as String,
+        'status': userRoleResponse['status'] as String,
+      };
     } catch (e) {
       throw Exception('Login failed: $e');
     }
