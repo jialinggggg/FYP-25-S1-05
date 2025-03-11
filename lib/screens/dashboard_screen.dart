@@ -38,7 +38,7 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
       final latestDateResponse = await _supabase
           .from('meal_entries')
           .select('created_at')
-          .eq('user_id', userId)
+          .eq('uid', userId)
           .order('created_at', ascending: false)
           .limit(1);
 
@@ -51,8 +51,8 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
       // Fetch all meal entries for the latest day
       final response = await _supabase
           .from('meal_entries')
-          .select('meal_calories, created_at')
-          .eq('user_id', userId)
+          .select('calories, created_at')
+          .eq('uid', userId)
           .gte('created_at', startOfDay.toIso8601String())
           .lt('created_at', endOfDay.toIso8601String());
 
@@ -60,7 +60,7 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
         // Calculate total calories for the day
         int totalCalories = 0;
         for (var entry in response) {
-          totalCalories += (entry['meal_calories'] as num).toInt();
+          totalCalories += (entry['calories'] as num).toInt();
         }
 
         setState(() {
@@ -84,7 +84,7 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
       final response = await _supabase
           .from('user_measurements')
           .select('bmi, created_at')
-          .eq('user_id', userId)
+          .eq('uid', userId)
           .order('created_at', ascending: false)
           .limit(1);
 

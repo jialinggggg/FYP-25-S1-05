@@ -44,11 +44,11 @@ class EditGoalsScreenState extends State<EditGoalsScreen> {
       final goalsData = await DataUtils.fetchGoalsData(userId);
       if (!mounted) return;
       setState(() {
-        _desiredWeightController.text = goalsData['desired_weight']?.toString() ?? "";
-        _dailyCaloriesController.text = goalsData['daily_calories_goal']?.toString() ?? "";
-        _fatsController.text = goalsData['fats_goal']?.toString() ?? "";
-        _proteinController.text = goalsData['protein_goal']?.toString() ?? "";
-        _carbsController.text = goalsData['carbs_goal']?.toString() ?? "";
+        _desiredWeightController.text = goalsData['weight']?.toString() ?? "";
+        _dailyCaloriesController.text = goalsData['daily_calories']?.toString() ?? "";
+        _fatsController.text = goalsData['fats']?.toString() ?? "";
+        _proteinController.text = goalsData['protein']?.toString() ?? "";
+        _carbsController.text = goalsData['carbs']?.toString() ?? "";
       });
     } catch (e) {
       if (!mounted) return;

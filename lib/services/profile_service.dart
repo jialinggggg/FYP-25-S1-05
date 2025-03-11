@@ -74,25 +74,25 @@ class ProfileService {
       final birthDateString = birthDate.toIso8601String();
 
       // Insert profile data
-      await _supabase.from('user_roles').insert({
-        'id':userId,
+      await _supabase.from('accounts').insert({
+        'uid':userId,
         'email': email,
         'type': "user",
         'status': "active", 
       });
 
       await _supabase.from('user_profiles').insert({
-        'user_id': userId,
+        'uid': userId,
         'name': name,
-        'location': location,
+        'country': location,
         'gender': gender,
         'birth_date': birthDateString,
-        'start_weight': weight,
+        'weight': weight,
         'height': height, // Use the converted string
       });
 
       await _supabase.from('user_measurements').insert({
-        'user_id': userId,
+        'uid': userId,
         'weight': weight,
         'height': height,
         'bmi': Calculations.calculateBMI(weight, height),
@@ -101,19 +101,19 @@ class ProfileService {
 
       // Insert medical history data with encrypted fields
       await _supabase.from('user_medical_info').insert({
-        'user_id': userId,
+        'uid': userId,
         'pre_existing': preExisting,
         'allergies': allergies,
       });
 
       // Insert user goals data
       await _supabase.from('user_goals').insert({
-        'user_id': userId,
-        'desired_weight': desiredWeight,
-        'daily_calories_goal': dailyCalories,
-        'protein_goal': protein,
-        'carbs_goal': carbs,
-        'fats_goal': fats,
+        'uid': userId,
+        'weight': desiredWeight,
+        'daily_calories': dailyCalories,
+        'protein': protein,
+        'carbs': carbs,
+        'fats': fats,
       });
     } catch (error) {
       throw Exception('Unable to create account: $error');
@@ -134,16 +134,16 @@ class ProfileService {
     final userId = user.id;
 
     // Delete user profile data
-    await _supabase.from('user_profiles').delete().eq('user_id', userId);
+    await _supabase.from('user_profiles').delete().eq('uid', userId);
 
     // Delete user measurements data
-    await _supabase.from('user_measurements').delete().eq('user_id', userId);
+    await _supabase.from('user_measurements').delete().eq('uid', userId);
 
     // Delete user medical history data
-    await _supabase.from('user_medical_info').delete().eq('user_id', userId);
+    await _supabase.from('user_medical_info').delete().eq('uid', userId);
 
     // Delete user goals data
-    await _supabase.from('user_goals').delete().eq('user_id', userId);
+    await _supabase.from('user_goals').delete().eq('uid', userId);
 
     // Delete the user account from Supabase Auth
     await _supabase.auth.admin.deleteUser(userId);
@@ -158,7 +158,7 @@ class ProfileService {
     final response = await _supabase
         .from('user_profiles')
         .select()
-        .eq('user_id', userId)
+        .eq('uid', userId)
         .single();
     return response;
   }
@@ -184,11 +184,11 @@ class ProfileService {
     await _supabase.from('user_profiles').update({
       'name': name,
       'birth_date': birthDate.toIso8601String(),
-      'location': location,
+      'country': location,
       'gender': gender,
-      'start_weight': startWeight,
+      'weight': startWeight,
       'height': height,
-    }).eq('user_id', userId);
+    }).eq('uid', userId);
   }
 
   /// Fetch user medical history
@@ -196,7 +196,7 @@ class ProfileService {
     final response = await _supabase
         .from('user_medical_info')
         .select()
-        .eq('user_id', userId)
+        .eq('uid', userId)
         .single();
     return response;
   }
@@ -210,7 +210,7 @@ class ProfileService {
     await _supabase.from('user_medical_info').update({
       'pre_existing': preExistingConditions,
       'allergies': allergies,
-    }).eq('user_id', userId);
+    }).eq('uid', userId);
   }
 
   /// Fetch user goals
@@ -218,7 +218,7 @@ class ProfileService {
     final response = await _supabase
         .from('user_goals')
         .select()
-        .eq('user_id', userId)
+        .eq('uid', userId)
         .single();
     return response;
   }
@@ -233,12 +233,12 @@ class ProfileService {
     required double fatsGoal,
   }) async {
     await _supabase.from('user_goals').update({
-      'desired_weight': desiredWeight,
-      'daily_calories_goal': dailyCaloriesGoal,
-      'protein_goal': proteinGoal,
-      'carbs_goal': carbsGoal,
-      'fats_goal': fatsGoal,
-    }).eq('user_id', userId);
+      'weight': desiredWeight,
+      'daily_calories': dailyCaloriesGoal,
+      'protein': proteinGoal,
+      'carbs': carbsGoal,
+      'fats': fatsGoal,
+    }).eq('uid', userId);
   }
 
     // Reusable function to fetch meal entries
@@ -247,7 +247,7 @@ class ProfileService {
     return await supabase
         .from('meal_entries')
         .select('*')
-        .eq('user_id', userId)
+        .eq('uid', userId)
         .gte('created_at', startDate.toIso8601String())
         .lte('created_at', endDate.toIso8601String())
         .order('created_at', ascending: false);
@@ -258,7 +258,7 @@ class ProfileService {
     return await supabase
         .from('user_measurements')
         .select('weight, height, bmi, created_at')
-        .eq('user_id', userId)
+        .eq('uid', userId)
         .order('created_at', ascending: false);
   }
 
@@ -289,15 +289,15 @@ class ProfileService {
       final userId = user.id;
 
       // Insert profile data
-      await _supabase.from('user_roles').insert({
-        'id':userId,
+      await _supabase.from('accounts').insert({
+        'uid':userId,
         'email': email,
         'type': "business",
         'status': "pending", 
       });
 
-      await _supabase.from('business_profile').insert({
-        'id': userId,
+      await _supabase.from('business_profiles').insert({
+        'uid': userId,
         'name': name,
         'registration_no': registration,
         'country': country,

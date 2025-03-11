@@ -127,7 +127,7 @@ class MainLogScreenState extends State<MainLogScreen> {
         print('Fetched meals: $data');
         setState(() {
           for (var food in data as List<dynamic>) {
-            String mealType = food['meal_type'];
+            String mealType = food['type'];
             if (loggedMeals.containsKey(mealType)) {
               loggedMeals[mealType]!.add(food);
             }
@@ -155,21 +155,21 @@ class MainLogScreenState extends State<MainLogScreen> {
     for (var food in selectedFoods) {
       // Safely parse values; if null or unparsable, default to 0 or 0.0.
       int foodCalories = int.tryParse(
-              food["meal_calories"]?.toString().split(" ")[0] ?? "") ??
+              food["calories"]?.toString().split(" ")[0] ?? "") ??
           0;
       double foodCarbs = double.tryParse(
-              food["meal_carbs"]?.toString().split(" ")[0] ?? "") ??
+              food["carbs"]?.toString().split(" ")[0] ?? "") ??
           0.0;
       double foodProtein = double.tryParse(
-              food["meal_protein"]?.toString().split(" ")[0] ?? "") ??
+              food["protein"]?.toString().split(" ")[0] ?? "") ??
           0.0;
       double foodFat = double.tryParse(
-              food["meal_fats"]?.toString().split(" ")[0] ?? "") ??
+              food["fats"]?.toString().split(" ")[0] ?? "") ??
           0.0;
 
       // Check if the food already exists locally using the meal_name key.
       if (!loggedMeals[mealType]!
-          .any((f) => f["meal_name"] == food["meal_name"])) {
+          .any((f) => f["name"] == food["name"])) {
         // First update local state.
         setState(() {
           loggedMeals[mealType]!.add(food);
@@ -196,13 +196,13 @@ class MainLogScreenState extends State<MainLogScreen> {
           final inserted = await Supabase.instance.client
               .from('meal_entries')
               .insert({
-            'user_id': userId,
-            'meal_name': food['meal_name'] ?? '',
-            'meal_calories': foodCalories,
-            'meal_carbs': foodCarbs,
-            'meal_protein': foodProtein,
-            'meal_fats': foodFat,
-            'meal_type': mealType,
+            'uid': userId,
+            'name': food['name'] ?? '',
+            'calories': foodCalories,
+            'carbs': foodCarbs,
+            'protein': foodProtein,
+            'fats': foodFat,
+            'type': mealType,
           }).select();
 
           print('Food added to Supabase: $inserted');
@@ -237,16 +237,16 @@ class MainLogScreenState extends State<MainLogScreen> {
 
     // Safely parse the nutrition info to update local totals.
     int foodCalories = int.tryParse(
-            food["meal_calories"]?.toString().split(" ")[0] ?? "") ??
+            food["calories"]?.toString().split(" ")[0] ?? "") ??
         0;
     double foodCarbs = double.tryParse(
-            food["meal_carbs"]?.toString().split(" ")[0] ?? "") ??
+            food["carbs"]?.toString().split(" ")[0] ?? "") ??
         0.0;
     double foodProtein = double.tryParse(
-            food["meal_protein"]?.toString().split(" ")[0] ?? "") ??
+            food["protein"]?.toString().split(" ")[0] ?? "") ??
         0.0;
     double foodFat = double.tryParse(
-            food["meal_fats"]?.toString().split(" ")[0] ?? "") ??
+            food["fats"]?.toString().split(" ")[0] ?? "") ??
         0.0;
 
     // First update the local state.
@@ -555,11 +555,11 @@ class MainLogScreenState extends State<MainLogScreen> {
       Map<String, dynamic> food = entry.value;
       return ListTile(
         title: Text(
-          food["meal_name"] ?? '',
+          food["name"] ?? '',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          "${food["meal_calories"] ?? 0} - ${food["meal_carbs"] ?? 0} Carbs, ${food["meal_protein"] ?? 0} Protein, ${food["meal_fats"] ?? 0} Fat",
+          "${food["calories"] ?? 0} - ${food["carbs"] ?? 0} Carbs, ${food["protein"] ?? 0} Protein, ${food["fats"] ?? 0} Fat",
         ),
         trailing: IconButton(
           icon: const Icon(Icons.remove_circle_outline, color: Colors.red),

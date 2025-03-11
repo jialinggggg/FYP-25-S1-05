@@ -40,7 +40,7 @@ class _NutritionReportScreenState extends State<NutritionReportScreen> {
           final response = await _supabase
               .from('meal_entries')
               .select('created_at')
-              .eq('user_id', userId)
+              .eq('uid', userId)
               .order('created_at', ascending: false)
               .limit(100);
 
@@ -81,19 +81,19 @@ class _NutritionReportScreenState extends State<NutritionReportScreen> {
       final dataResponse = await _supabase
           .from('meal_entries')
           .select('*')
-          .eq('user_id', userId)
+          .eq('uid', userId)
           .gte('created_at', startDate.toIso8601String())
           .lte('created_at', endDate.toIso8601String())
           .order('created_at', ascending: false);
 
       _mealEntries = dataResponse.map((entry) => MealEntry(
             date: DateTime.parse(entry['created_at'] as String),
-            calories: (entry['meal_calories'] as num).toInt(),
-            protein: (entry['meal_protein'] as num).toDouble(),
-            carbs: (entry['meal_carbs'] as num).toDouble(),
-            fats: (entry['meal_fats'] as num).toDouble(),
-            name: entry['meal_name'] as String,
-            type: entry['meal_type'] as String,
+            calories: (entry['calories'] as num).toInt(),
+            protein: (entry['protein'] as num).toDouble(),
+            carbs: (entry['carbs'] as num).toDouble(),
+            fats: (entry['fats'] as num).toDouble(),
+            name: entry['name'] as String,
+            type: entry['type'] as String,
           )).toList();
 
       if (mounted) setState(() {});

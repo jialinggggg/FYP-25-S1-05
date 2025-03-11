@@ -57,13 +57,13 @@ class EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       setState(() {
         _nameController.text = profileData['name'] ?? "";
-        _locationController.text = profileData['location'] ?? "";
+        _locationController.text = profileData['country'] ?? "";
         _selectedDate = DateTime.tryParse(profileData['birth_date'] ?? "");
         _birthDateController.text = _selectedDate != null
             ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
             : "";
         _selectedGender = profileData['gender'] ?? "";
-        _weightController.text = profileData['start_weight']?.toString() ?? "";
+        _weightController.text = profileData['weight']?.toString() ?? "";
         _heightController.text = profileData['height']?.toString() ?? "";
       });
     } catch (e) {

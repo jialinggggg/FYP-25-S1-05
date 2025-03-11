@@ -66,18 +66,18 @@ class ProfileScreenState extends State<ProfileScreen> {
         // Profile Data
         name = profileData['name'] ?? "";
         email = userEmail; // Use the fetched email
-        location = profileData['location'] ?? "";
+        location = profileData['country'] ?? "";
         birthDate = DateTime.tryParse(profileData['birth_date'] ?? "");
         gender = profileData['gender'] ?? "";
-        startWeight = double.tryParse(profileData['start_weight']?.toString() ?? '0.0') ?? 0.0;
+        startWeight = double.tryParse(profileData['weight']?.toString() ?? '0.0') ?? 0.0;
         height = double.tryParse(profileData['height']?.toString() ?? '0.0') ?? 0.0;
 
         // Goals Data
-        desiredWeight = double.tryParse(goalsData['desired_weight']?.toString() ?? '0.0') ?? 0.0;
-        dailyCalories = goalsData['daily_calories_goal'] ?? 0;
-        fats = double.tryParse(goalsData['fats_goal']?.toString() ?? '0.0') ?? 0.0;
-        protein = double.tryParse(goalsData['protein_goal']?.toString() ?? '0.0') ?? 0.0;
-        carbs = double.tryParse(goalsData['carbs_goal']?.toString() ?? '0.0') ?? 0.0;
+        desiredWeight = double.tryParse(goalsData['weight']?.toString() ?? '0.0') ?? 0.0;
+        dailyCalories = goalsData['daily_calories'] ?? 0;
+        fats = double.tryParse(goalsData['fats']?.toString() ?? '0.0') ?? 0.0;
+        protein = double.tryParse(goalsData['protein']?.toString() ?? '0.0') ?? 0.0;
+        carbs = double.tryParse(goalsData['carbs']?.toString() ?? '0.0') ?? 0.0;
 
         // Medical History
         preExistingConditions = medicalHistory['pre_existing'] ?? "";

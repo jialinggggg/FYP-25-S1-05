@@ -21,7 +21,7 @@ class AuthService {
 
       // Fetch user role and status from the "user_roles" table
       final userRoleResponse = await _supabase
-          .from('user_roles')
+          .from('accounts')
           .select('type, status')
           .eq('email', email)
           .single();

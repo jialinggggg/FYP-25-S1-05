@@ -33,7 +33,7 @@ class _HealthReportScreenState extends State<HealthReportScreen> {
       final response = await _supabase
           .from('user_measurements')
           .select('weight, height, bmi, created_at')
-          .eq('user_id', userId)
+          .eq('uid', userId)
           .order('created_at', ascending: false);
 
       _healthData = response.map((entry) {
