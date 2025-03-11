@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'signup_welcome.dart';
-import 'signup_biz_profile.dart';
+import '../user/signup_welcome.dart';
+import '../business/signup_biz_profile.dart';
 
 class SignupType extends StatefulWidget {
   const SignupType({super.key});

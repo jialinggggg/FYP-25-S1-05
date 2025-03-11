@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'login.dart';
+import '../app/shared/login.dart';
 
-class SignupSuccess extends StatelessWidget {
-  const SignupSuccess({super.key});
+class SignupResult extends StatelessWidget {
+  final String type; // 'business' or 'user'
+
+  const SignupResult({super.key, required this.type});
 
   @override
   Widget build(BuildContext context) {
+    bool isBusiness = type == 'business';
+
     return Scaffold(
       backgroundColor: Colors.white, // White background
       body: Center(
@@ -20,9 +24,9 @@ class SignupSuccess extends StatelessWidget {
                 size: 80,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Account Created Successfully!',
-                style: TextStyle(
+              Text(
+                isBusiness ? 'Application Submitted!' : 'Account Created Successfully!',
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -30,9 +34,9 @@ class SignupSuccess extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
-              const Text(
-                "You're all set! Click below to log in.",
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+              Text(
+                isBusiness ? 'Your application is under review.' : "You're all set! Click below to log in.",
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -53,9 +57,9 @@ class SignupSuccess extends StatelessWidget {
                       (Route<dynamic> route) => false,
                     );
                   },
-                  child: const Text(
-                    'Go to Login',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  child: Text(
+                    isBusiness ? 'Back' : 'Go to Login',
+                    style: const TextStyle(fontSize: 18, color: Colors.white),
                   ),
                 ),
               ),

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import '../services/country_service.dart';
-import '../utils/input_validator.dart';
-import '../utils/dialog_utils.dart';
+import '../../../../services/country_service.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/dialog_utils.dart';
 import 'signup_you.dart';
+import '../../../backend/utils/build_error_msg.dart';
 
 class SignupWelcome extends StatefulWidget {
   const SignupWelcome({super.key});
@@ -131,13 +132,17 @@ class SignupWelcomeState extends State<SignupWelcome> {
             const SizedBox(height: 10),
             TextField(
               controller: _nameController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Enter your preferred name",
-                hasError: _nameError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Enter your name",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+              
             ),
             if (_nameError)
-              InputValidator.buildErrorMessage("Please enter your name"),
+              BuildErrorMsg.buildErrorMessage("Please enter your name"),
             const SizedBox(height: 30),
 
             // Country Selection Dropdown
@@ -180,7 +185,7 @@ class SignupWelcomeState extends State<SignupWelcome> {
                     ),
                   ),
             if (_countryError)
-              InputValidator.buildErrorMessage("Please select your country"),
+              BuildErrorMsg.buildErrorMessage("Please select your country"),
             const SizedBox(height: 30),
 
             const Spacer(), // Pushes button to bottom

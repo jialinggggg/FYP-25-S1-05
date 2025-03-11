@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:nutri_app/screens/profile_screen.dart';
-import 'package:nutri_app/screens/report_nutri.dart';
+import 'package:nutri_app/frontend/app/user/profile_screen.dart';
+import 'package:nutri_app/frontend/app/user/report_nutri.dart';
 import 'orders_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';

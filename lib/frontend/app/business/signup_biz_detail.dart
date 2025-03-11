@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'signup_result.dart'; // Import the next page
-import '../services/profile_service.dart'; // Import the ProfileService
-import '../utils/input_validator.dart'; // Import the InputValidator
+import '../../../backend/utils/input_validator.dart';
+import '../shared/signup_result.dart'; // Import the next page
+import '../../../../services/profile_service.dart'; // Import the ProfileService
+import '../../../backend/supabase/business_profile.dart'; // Import the BusinessProfilesService
+import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthUsersService
+import '../../../backend/supabase/accounts_service.dart'; // Import the AccountService
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import '../../../backend/utils/build_error_msg.dart';
 
 class SignupBizDetail extends StatefulWidget {
   final String name;
@@ -32,10 +37,11 @@ class SignupBizDetailState extends State<SignupBizDetail> {
   final _passwordController = TextEditingController();
   bool _isLoading = false; // Track loading state
   final ProfileService _profileService = ProfileService(); // Instance of ProfileService
+  final SupabaseClient _supabase = Supabase.instance.client; // Initialize Supabase client
 
   // Validation error states
-  bool _emailError = false; 
-  bool _passwordError = false; 
+  bool _emailError = false;
+  bool _passwordError = false;
   bool _emailExistsError = false;
 
   // Password validation rules
@@ -46,12 +52,12 @@ class SignupBizDetailState extends State<SignupBizDetail> {
 
   // Function to validate password
   void _validatePassword(String password) {
-    final validationResult = ProfileService.validatePassword(password);
+    final validationResult = InputValidator.validatePassword(password); // Access static method
     setState(() {
-      _hasMinLength = validationResult['hasMinLength']!;
-      _hasUppercase = validationResult['hasUppercase']!;
-      _hasNumber = validationResult['hasNumber']!;
-      _hasSymbol = validationResult['hasSymbol']!;
+      _hasMinLength = validationResult['hasMinLength'] ?? false;
+      _hasUppercase = validationResult['hasUppercase'] ?? false;
+      _hasNumber = validationResult['hasNumber'] ?? false;
+      _hasSymbol = validationResult['hasSymbol'] ?? false;
     });
   }
 
@@ -67,7 +73,7 @@ class SignupBizDetailState extends State<SignupBizDetail> {
     final password = _passwordController.text.trim();
 
     // Validate email
-    if (email.isEmpty || !ProfileService.isValidEmail(email)) {
+    if (email.isEmpty || !InputValidator.isValidEmail(email)) { // Access static method
       setState(() {
         _emailError = true;
       });
@@ -89,17 +95,31 @@ class SignupBizDetailState extends State<SignupBizDetail> {
     try {
       // Check if email exists
       final emailExists = await _profileService.isEmailAvailable(email);
-      if (emailExists) {
+      if (!emailExists) {
         setState(() {
           _emailExistsError = true;
         });
         return;
       }
 
-      // Create business account
-      await _profileService.createBusinessAccount(
+      final authService = AuthUsersService(_supabase);
+      final accountService = AccountService(_supabase);
+      final businessProfileService = BusinessProfilesService(_supabase);
+
+      // Step 1: Sign up the user using AuthUsersService
+      final uid = await authService.signUp(email: email, password: password);
+
+      // Step 2: Insert into accounts table using AccountService
+      await accountService.insertAccount(
+        uid: uid,
         email: email,
-        password: password,
+        type: "business", // Default type
+        status: "pending", // Default status
+      );
+
+      // Step 3: Insert into business_profiles table
+      await businessProfileService.insertBizProfile(
+        uid: uid,
         name: widget.name,
         registration: widget.registration,
         country: widget.country,
@@ -116,7 +136,7 @@ class SignupBizDetailState extends State<SignupBizDetail> {
         );
       }
     } catch (e) {
-      // Delete account if creation fails
+      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -183,10 +203,13 @@ class SignupBizDetailState extends State<SignupBizDetail> {
             // Email text field
             TextField(
               controller: _emailController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Enter your email address",
-                hasError: _emailError || _emailExistsError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Enter your email",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               onChanged: (value) {
                 setState(() {
                   _emailError = false;
@@ -195,9 +218,9 @@ class SignupBizDetailState extends State<SignupBizDetail> {
               },
             ),
             if (_emailError) // Show error message if email is invalid
-              InputValidator.buildErrorMessage("Please enter a valid email address"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid email address"),
             if (_emailExistsError) // Show error message if email already exists
-              InputValidator.buildErrorMessage("This email is already registered"),
+              BuildErrorMsg.buildErrorMessage("This email is already registered"),
             const SizedBox(height: 25),
 
             // Password label
@@ -210,10 +233,13 @@ class SignupBizDetailState extends State<SignupBizDetail> {
             // Password text field
             TextField(
               controller: _passwordController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Create a strong password",
-                hasError: _passwordError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Create a strong password",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               obscureText: true,
               onChanged: (value) {
                 _validatePassword(value);
@@ -223,7 +249,7 @@ class SignupBizDetailState extends State<SignupBizDetail> {
               },
             ),
             if (_passwordError) // Show error message if password is invalid
-              InputValidator.buildErrorMessage("Please enter a valid password"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid password"),
             const SizedBox(height: 10),
 
             // Password guidelines

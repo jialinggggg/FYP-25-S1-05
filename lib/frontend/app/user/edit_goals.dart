@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/profile_service.dart';
-import '../utils/widget_utils.dart';
-import '../utils/input_validator.dart';
-import '../utils/dialog_utils.dart';
-import '../utils/data_utils.dart';
+import '../../../../utils/widget_utils.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/dialog_utils.dart';
+import '../../../backend/supabase/user_goals_service.dart';
 
 class EditGoalsScreen extends StatefulWidget {
   final VoidCallback onUpdate;
@@ -16,7 +15,7 @@ class EditGoalsScreen extends StatefulWidget {
 }
 
 class EditGoalsScreenState extends State<EditGoalsScreen> {
-  final ProfileService _profileService = ProfileService();
+  final UserGoalsService _userGoalsService = UserGoalsService(Supabase.instance.client); // Initialize UserGoalsService
 
   final TextEditingController _desiredWeightController = TextEditingController();
   final TextEditingController _dailyCaloriesController = TextEditingController();
@@ -41,14 +40,15 @@ class EditGoalsScreenState extends State<EditGoalsScreen> {
     if (userId == null) return;
 
     try {
-      final goalsData = await DataUtils.fetchGoalsData(userId);
+      // Fetch goals data using UserGoalsService
+      final goalsData = await _userGoalsService.fetchGoals(userId);
       if (!mounted) return;
       setState(() {
-        _desiredWeightController.text = goalsData['weight']?.toString() ?? "";
-        _dailyCaloriesController.text = goalsData['daily_calories']?.toString() ?? "";
-        _fatsController.text = goalsData['fats']?.toString() ?? "";
-        _proteinController.text = goalsData['protein']?.toString() ?? "";
-        _carbsController.text = goalsData['carbs']?.toString() ?? "";
+        _desiredWeightController.text = goalsData?['weight']?.toString() ?? "";
+        _dailyCaloriesController.text = goalsData?['daily_calories']?.toString() ?? "";
+        _fatsController.text = goalsData?['fats']?.toString() ?? "";
+        _proteinController.text = goalsData?['protein']?.toString() ?? "";
+        _carbsController.text = goalsData?['carbs']?.toString() ?? "";
       });
     } catch (e) {
       if (!mounted) return;
@@ -139,13 +139,13 @@ class EditGoalsScreenState extends State<EditGoalsScreen> {
     if (userId == null) return;
 
     try {
-      await _profileService.updateGoals(
-        userId,
-        desiredWeight: double.parse(_desiredWeightController.text),
-        dailyCaloriesGoal: int.parse(_dailyCaloriesController.text),
-        fatsGoal: double.parse(_fatsController.text),
-        proteinGoal: double.parse(_proteinController.text),
-        carbsGoal: double.parse(_carbsController.text),
+      await _userGoalsService.updateGoals(
+        uid: userId,
+        weight: double.parse(_desiredWeightController.text),
+        dailyCalories: int.parse(_dailyCaloriesController.text),
+        protein: double.parse(_proteinController.text),
+        carbs: double.parse(_carbsController.text),
+        fats: double.parse(_fatsController.text),
       );
 
       if (!mounted) return;

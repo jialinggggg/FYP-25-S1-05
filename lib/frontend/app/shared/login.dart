@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'main_log_screen.dart';
+import '../user/main_log_screen.dart';
 import 'signup_type.dart'; // Import SignupWelcome screen
-import '../services/auth_service.dart'; // Import AuthService
-import '../utils/dialog_utils.dart'; // Import DialogUtils
-import '../utils/input_validator.dart'; // Import InputValidator
-import 'biz_partner_dashboard.dart'; // Import BizPartnerDashboard screen
+import '../../../../services/auth_service.dart'; // Import AuthService
+import '../../../../utils/dialog_utils.dart'; // Import DialogUtils
+import '../../../backend/utils/input_validator.dart'; // Import InputValidator
+import '../business/biz_partner_dashboard.dart'; // Import BizPartnerDashboard screen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -151,21 +151,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Email input field
                     TextField(
                       controller: _emailController,
-                      decoration: InputValidator.buildInputDecoration(
-                        hintText: "Enter your email",
-                        hasError: false, // No error by default
+                      decoration: InputDecoration(
+                      hintText: "Enter your email",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                    ),
                     ),
                     const SizedBox(height: 16),
 
                     // Password input field
                     TextField(
                       controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputValidator.buildInputDecoration(
-                        hintText: "Enter your password",
-                        hasError: false, // No error by default
+                      decoration: InputDecoration(
+                      hintText: "Enter your password",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                    ),
+                      obscureText: true,
                     ),
                     const SizedBox(height: 100),
 

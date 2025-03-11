@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../utils/input_validator.dart';
-import '../utils/date_picker.dart';
-import '../utils/dialog_utils.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/date_picker.dart';
+import '../../../../utils/dialog_utils.dart';
 import 'signup_med.dart';
+import '../../../backend/utils/build_error_msg.dart';
 
 // Stateful widget for user signup page
 class SignupYou extends StatefulWidget {
@@ -178,7 +179,7 @@ class SignupYouState extends State<SignupYou> {
               ],
             ),
             if (_genderError)
-              InputValidator.buildErrorMessage("Please select your gender"),
+              BuildErrorMsg.buildErrorMessage("Please select your gender"),
             const SizedBox(height: 25),
 
             // Birthdate input field with calendar icon
@@ -193,9 +194,12 @@ class SignupYouState extends State<SignupYou> {
                 Expanded(
                   child: TextField(
                     controller: _dateController,
-                    decoration: InputValidator.buildInputDecoration(
-                      hintText: "Enter your Birthdate",
-                      hasError: _dateError,
+                    decoration: InputDecoration(
+                      hintText: "Select your birthdate",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     readOnly: true,
                     onTap: () => _selectDate(context),
@@ -209,7 +213,7 @@ class SignupYouState extends State<SignupYou> {
               ],
             ),
             if (_dateError)
-              InputValidator.buildErrorMessage("Please enter your birthdate"),
+              BuildErrorMsg.buildErrorMessage("Please enter your birthdate"),
             const SizedBox(height: 25),
 
             // Height Field
@@ -220,15 +224,18 @@ class SignupYouState extends State<SignupYou> {
             const SizedBox(height: 10),
             TextField(
               controller: _heightController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Enter your height",
-                hasError: _heightError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Enter your height",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) => setState(() => _heightError = false),
             ),
             if (_heightError)
-              InputValidator.buildErrorMessage("Please enter a valid height (50-300 cm)"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid height (50-300 cm)"),
             const SizedBox(height: 25),
 
             // Weight Field
@@ -239,15 +246,18 @@ class SignupYouState extends State<SignupYou> {
             const SizedBox(height: 10),
             TextField(
               controller: _weightController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Enter your weight",
-                hasError: _weightError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Enter your weight",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) => setState(() => _weightError = false),
             ),
             if (_weightError)
-              InputValidator.buildErrorMessage("Please enter a valid weight (20-500 kg)"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid weight (20-500 kg)"),
             const SizedBox(height: 25),
 
             const Spacer(),

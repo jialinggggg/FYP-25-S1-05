@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/profile_service.dart';
-import '../services/country_service.dart';
-import '../utils/input_validator.dart';
-import '../utils/date_picker.dart';
-import '../utils/widget_utils.dart';
-import '../utils/dialog_utils.dart';
-import '../utils/data_utils.dart';
+import '../../../../services/country_service.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/date_picker.dart';
+import '../../../../utils/widget_utils.dart';
+import '../../../../utils/dialog_utils.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import '../../../backend/supabase/user_profiles_service.dart'; // Import UserProfilesService
 
 class EditProfileScreen extends StatefulWidget {
   final VoidCallback onProfileUpdated;
@@ -19,8 +18,8 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class EditProfileScreenState extends State<EditProfileScreen> {
-  final ProfileService _profileService = ProfileService();
   final CountryService _countryService = CountryService();
+  final UserProfilesService _userProfilesService = UserProfilesService(Supabase.instance.client); // Initialize UserProfilesService
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
@@ -53,18 +52,20 @@ class EditProfileScreenState extends State<EditProfileScreen> {
     if (userId == null) return;
 
     try {
-      final profileData = await DataUtils.fetchProfileData(userId);
+      // Use UserProfilesService to fetch profile data
+      final profileData = await _userProfilesService.fetchProfile(userId);
       if (!mounted) return;
+
       setState(() {
-        _nameController.text = profileData['name'] ?? "";
-        _locationController.text = profileData['country'] ?? "";
-        _selectedDate = DateTime.tryParse(profileData['birth_date'] ?? "");
+        _nameController.text = profileData?['name'] ?? "";
+        _locationController.text = profileData?['country'] ?? "";
+        _selectedDate = DateTime.tryParse(profileData?['birth_date'] ?? "");
         _birthDateController.text = _selectedDate != null
             ? "${_selectedDate!.year}-${_selectedDate!.month.toString().padLeft(2, '0')}-${_selectedDate!.day.toString().padLeft(2, '0')}"
             : "";
-        _selectedGender = profileData['gender'] ?? "";
-        _weightController.text = profileData['weight']?.toString() ?? "";
-        _heightController.text = profileData['height']?.toString() ?? "";
+        _selectedGender = profileData?['gender'] ?? "";
+        _weightController.text = profileData?['weight']?.toString() ?? "";
+        _heightController.text = profileData?['height']?.toString() ?? "";
       });
     } catch (e) {
       if (mounted) {
@@ -149,13 +150,13 @@ class EditProfileScreenState extends State<EditProfileScreen> {
     if (userId == null || _selectedDate == null) return;
 
     try {
-      await _profileService.updateProfile(
-        userId,
+      await _userProfilesService.updateProfile(
+        uid: userId,
         name: _nameController.text,
-        birthDate: _selectedDate!,
-        location: _selectedCountry ?? _locationController.text,
+        birthdate: _selectedDate!,
+        country: _selectedCountry ?? _locationController.text,
         gender: _selectedGender ?? "",
-        startWeight: double.tryParse(_weightController.text) ?? 0.0,
+        weight: double.tryParse(_weightController.text) ?? 0.0,
         height: double.tryParse(_heightController.text) ?? 0.0,
       );
 

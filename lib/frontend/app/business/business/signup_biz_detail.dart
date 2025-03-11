@@ -1,54 +1,48 @@
-// lib/screens/signup_detail.dart
 import 'package:flutter/material.dart';
-import 'signup_result.dart'; // Import the next page
-import '../services/profile_service.dart'; // Import the ProfileService
-import '../utils/input_validator.dart'; // Import the InputValidator
+import '../../../../backend/utils/input_validator.dart';
+import '../../shared/signup_result.dart'; // Import the next page
+import '../../../../services/profile_service.dart'; // Import the ProfileService
+import '../../../../backend/supabase/business_profile.dart'; // Import the BusinessProfilesService
+import '../../../../backend/supabase/auth_user_service.dart'; // Import the AuthUsersService
+import '../../../../backend/supabase/accounts_service.dart'; // Import the AccountService
+import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import '../../../../backend/utils/build_error_msg.dart';
 
-class SignUpDetail extends StatefulWidget {
+class SignupBizDetail extends StatefulWidget {
   final String name;
-  final String location;
-  final String gender;
-  final DateTime birthDate;
-  final double weight;
-  final double height;
-  final String preExisting;
-  final String allergies;
-  final double desiredWeight;
-  final int dailyCalories;
-  final double protein;
-  final double carbs;
-  final double fats;
+  final String registration;
+  final String country;
+  final String address;
+  final String type;
+  final String description;
 
-  const SignUpDetail({
+  // Constructor to initialize business details
+  const SignupBizDetail({
     super.key,
     required this.name,
-    required this.location,
-    required this.gender,
-    required this.birthDate,
-    required this.weight,
-    required this.height,
-    required this.preExisting,
-    required this.allergies,
-    required this.desiredWeight,
-    required this.dailyCalories,
-    required this.protein,
-    required this.carbs,
-    required this.fats,
+    required this.registration,
+    required this.country,
+    required this.address,
+    required this.type,
+    required this.description,
   });
 
   @override
-  SignUpDetailState createState() => SignUpDetailState();
+  SignupBizDetailState createState() => SignupBizDetailState();
 }
 
-class SignUpDetailState extends State<SignUpDetail> {
-  final _emailController = TextEditingController(); // Controller for email
-  final _passwordController = TextEditingController(); // Controller for password
+class SignupBizDetailState extends State<SignupBizDetail> {
+  // Controllers for email and password input fields
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false; // Track loading state
   final ProfileService _profileService = ProfileService(); // Instance of ProfileService
+  final SupabaseClient _supabase = Supabase.instance.client; // Initialize Supabase client
 
-  bool _emailError = false; // Track if email field has an error
-  bool _passwordError = false; // Track if password field has an error
-  bool _emailExistsError = false; // Track if email exists error
+  // Validation error states
+  bool _emailError = false;
+  bool _passwordError = false;
+  bool _emailExistsError = false;
 
   // Password validation rules
   bool _hasMinLength = false;
@@ -58,17 +52,17 @@ class SignUpDetailState extends State<SignUpDetail> {
 
   // Function to validate password
   void _validatePassword(String password) {
-    final validationResult = ProfileService.validatePassword(password);
+    final validationResult = InputValidator.validatePassword(password); // Access static method
     setState(() {
-      _hasMinLength = validationResult['hasMinLength']!;
-      _hasUppercase = validationResult['hasUppercase']!;
-      _hasNumber = validationResult['hasNumber']!;
-      _hasSymbol = validationResult['hasSymbol']!;
+      _hasMinLength = validationResult['hasMinLength'] ?? false;
+      _hasUppercase = validationResult['hasUppercase'] ?? false;
+      _hasNumber = validationResult['hasNumber'] ?? false;
+      _hasSymbol = validationResult['hasSymbol'] ?? false;
     });
   }
 
-  // Function to create account
-  Future<void> _createAccount() async {
+  // Function to create business account
+  Future<void> _createBusinessAccount() async {
     setState(() {
       _emailError = false;
       _passwordError = false;
@@ -79,7 +73,7 @@ class SignUpDetailState extends State<SignUpDetail> {
     final password = _passwordController.text.trim();
 
     // Validate email
-    if (email.isEmpty || !ProfileService.isValidEmail(email)) {
+    if (email.isEmpty || !InputValidator.isValidEmail(email)) { // Access static method
       setState(() {
         _emailError = true;
       });
@@ -101,41 +95,48 @@ class SignUpDetailState extends State<SignUpDetail> {
     try {
       // Check if email exists
       final emailExists = await _profileService.isEmailAvailable(email);
-      if (emailExists) {
+      if (!emailExists) {
         setState(() {
           _emailExistsError = true;
         });
         return;
       }
 
-      // Create account
-      await _profileService.createUserAccount(
+      final authService = AuthUsersService(_supabase);
+      final accountService = AccountService(_supabase);
+      final businessProfileService = BusinessProfilesService(_supabase);
+
+      // Step 1: Sign up the user using AuthUsersService
+      final uid = await authService.signUp(email: email, password: password);
+
+      // Step 2: Insert into accounts table using AccountService
+      await accountService.insertAccount(
+        uid: uid,
         email: email,
-        password: password,
+        type: "business", // Default type
+        status: "pending", // Default status
+      );
+
+      // Step 3: Insert into business_profiles table
+      await businessProfileService.insertBizProfile(
+        uid: uid,
         name: widget.name,
-        location: widget.location,
-        gender: widget.gender,
-        birthDate: widget.birthDate,
-        weight: widget.weight,
-        height: widget.height,
-        preExisting: widget.preExisting,
-        allergies: widget.allergies,
-        desiredWeight: widget.desiredWeight,
-        dailyCalories: widget.dailyCalories,
-        protein: widget.protein,
-        carbs: widget.carbs,
-        fats: widget.fats,
+        registration: widget.registration,
+        country: widget.country,
+        address: widget.address,
+        type: widget.type,
+        description: widget.description,
       );
 
       // Navigate to the success page
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => SignupResult(type: "user")),
+          MaterialPageRoute(builder: (context) => SignupResult(type: "business")),
         );
       }
     } catch (e) {
-      // Delete account if creation fails
+      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
@@ -158,10 +159,10 @@ class SignUpDetailState extends State<SignUpDetail> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header "Create Account" text
+            // Header "Create Business Account" text
             Center(
               child: Text(
-                "Create Account",
+                "Create Business Account",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -171,13 +172,13 @@ class SignUpDetailState extends State<SignUpDetail> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                5,
+                2,
                 (index) => Container(
-                  width: 68,
+                  width: 179,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
-                    color: index == 4 ? Colors.green : Colors.black,
+                    color: index == 1 ? Colors.green : Colors.black,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -187,7 +188,7 @@ class SignUpDetailState extends State<SignUpDetail> {
 
             // Left-aligned text sections
             Text(
-              "Create Your Account!",
+              "Create Your Business Account!",
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
@@ -202,10 +203,13 @@ class SignUpDetailState extends State<SignUpDetail> {
             // Email text field
             TextField(
               controller: _emailController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Enter your email address",
-                hasError: _emailError || _emailExistsError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Enter your email",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               onChanged: (value) {
                 setState(() {
                   _emailError = false;
@@ -214,9 +218,9 @@ class SignUpDetailState extends State<SignUpDetail> {
               },
             ),
             if (_emailError) // Show error message if email is invalid
-              InputValidator.buildErrorMessage("Please enter a valid email address"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid email address"),
             if (_emailExistsError) // Show error message if email already exists
-              InputValidator.buildErrorMessage("This email is already registered"),
+              BuildErrorMsg.buildErrorMessage("This email is already registered"),
             const SizedBox(height: 25),
 
             // Password label
@@ -229,10 +233,13 @@ class SignUpDetailState extends State<SignUpDetail> {
             // Password text field
             TextField(
               controller: _passwordController,
-              decoration: InputValidator.buildInputDecoration(
-                hintText: "Create a strong password",
-                hasError: _passwordError,
-              ),
+              decoration: InputDecoration(
+                      hintText: "Create a strong password",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
               obscureText: true,
               onChanged: (value) {
                 _validatePassword(value);
@@ -242,7 +249,7 @@ class SignUpDetailState extends State<SignUpDetail> {
               },
             ),
             if (_passwordError) // Show error message if password is invalid
-              InputValidator.buildErrorMessage("Please enter a valid password"),
+              BuildErrorMsg.buildErrorMessage("Please enter a valid password"),
             const SizedBox(height: 10),
 
             // Password guidelines
@@ -286,7 +293,7 @@ class SignUpDetailState extends State<SignUpDetail> {
                             borderRadius: BorderRadius.circular(40),
                           ),
                         ),
-                        onPressed: _createAccount,
+                        onPressed: _createBusinessAccount,
                         child: Text(
                           "Sign Up",
                           style: TextStyle(fontSize: 18, color: Colors.white),

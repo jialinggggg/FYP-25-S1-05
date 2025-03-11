@@ -1,7 +1,7 @@
 // lib/screens/signup_target.dart
 import 'package:flutter/material.dart';
 import 'signup_detail.dart';
-import '../utils/calculations.dart';
+import '../../../../utils/calculations.dart';
 
 class SignupTarget extends StatefulWidget {
   final String name;

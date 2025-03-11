@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
-import '../services/country_service.dart';
-import '../utils/input_validator.dart';
-import '../utils/dialog_utils.dart';
+import '../../../../services/country_service.dart';
+import '../../../../backend/utils/input_validator.dart';
+import '../../../../utils/dialog_utils.dart';
+import '../../../../backend/utils/build_error_msg.dart';
 import 'signup_biz_detail.dart'; // Assuming this is the next screen
 
 class SignupBizProfile extends StatefulWidget {
@@ -190,13 +191,16 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _businessNameController,
-                  decoration: InputValidator.buildInputDecoration(
-                    hintText: "Enter your business name",
-                    hasError: _businessNameError,
-                  ),
+                  decoration: InputDecoration(
+                      hintText: "Enter your business name",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                 ),
                 if (_businessNameError)
-                  InputValidator.buildErrorMessage("Please enter your business name"),
+                  BuildErrorMsg.buildErrorMessage("Please enter your business name"),
                 const SizedBox(height: 20),
 
                 // Business Registration No. Field
@@ -207,13 +211,16 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _businessRegNoController,
-                  decoration: InputValidator.buildInputDecoration(
-                    hintText: "Enter your business registration number",
-                    hasError: _businessRegNoError,
-                  ),
+                  decoration: InputDecoration(
+                      hintText: "Enter your business registration number",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                 ),
                 if (_businessRegNoError)
-                  InputValidator.buildErrorMessage("Please enter your business registration number"),
+                  BuildErrorMsg.buildErrorMessage("Please enter your business registration number"),
                 const SizedBox(height: 20),
 
                 // Country Selection Dropdown
@@ -256,7 +263,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                         ),
                       ),
                 if (_countryError)
-                  InputValidator.buildErrorMessage("Please select your country"),
+                  BuildErrorMsg.buildErrorMessage("Please select your country"),
                 const SizedBox(height: 20),
 
                 // Business Address Field
@@ -267,13 +274,16 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _addressController,
-                  decoration: InputValidator.buildInputDecoration(
-                    hintText: "Enter your business address",
-                    hasError: _addressError,
-                  ),
+                  decoration: InputDecoration(
+                      hintText: "Enter your business address",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                 ),
                 if (_addressError)
-                  InputValidator.buildErrorMessage("Please enter your business address"),
+                  BuildErrorMsg.buildErrorMessage("Please enter your business address"),
                 const SizedBox(height: 20),
 
                 // Type of Services Provided Dropdown
@@ -310,7 +320,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                   ),
                 ),
                 if (_serviceTypeError)
-                  InputValidator.buildErrorMessage("Please select the type of services provided"),
+                  BuildErrorMsg.buildErrorMessage("Please select the type of services provided"),
                 const SizedBox(height: 20),
 
                 // Brief Description of Services Field
@@ -321,14 +331,17 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: _servicesDescriptionController,
+                  decoration: InputDecoration(
+                      hintText: "Enter a brief description of your services",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   maxLines: 3, // Allow multiple lines for description
-                  decoration: InputValidator.buildInputDecoration(
-                    hintText: "Provide a brief description of your services",
-                    hasError: _servicesDescriptionError,
-                  ),
                 ),
                 if (_servicesDescriptionError)
-                  InputValidator.buildErrorMessage("Please provide a brief description of your services"),
+                  BuildErrorMsg.buildErrorMessage("Please provide a brief description of your services"),
                 const SizedBox(height: 100), // Extra space for scrolling
               ],
             ),

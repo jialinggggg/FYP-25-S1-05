@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/profile_service.dart';
-import '../utils/widget_utils.dart';
-import '../utils/input_validator.dart';
-import '../utils/dialog_utils.dart';
-import '../utils/data_utils.dart';
+import '../../../../utils/widget_utils.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/dialog_utils.dart';
+import '../../../backend/supabase/user_medical_service.dart'; // Ensure this import is correct
 
 class EditMedicalHistoryScreen extends StatefulWidget {
   final VoidCallback onUpdate;
@@ -16,7 +15,7 @@ class EditMedicalHistoryScreen extends StatefulWidget {
 }
 
 class EditMedicalHistoryScreenState extends State<EditMedicalHistoryScreen> {
-  final ProfileService _profileService = ProfileService();
+  final UserMedicalService _userMedicalService = UserMedicalService(Supabase.instance.client); // Initialize UserMedicalService
 
   final TextEditingController _preExistingController = TextEditingController();
   final TextEditingController _allergiesController = TextEditingController();
@@ -40,25 +39,42 @@ class EditMedicalHistoryScreenState extends State<EditMedicalHistoryScreen> {
     if (userId == null) return;
 
     try {
-      final medicalHistory = await DataUtils.fetchMedicalHistoryData(userId);
+      // Use UserMedicalService to fetch medical history
+      final medicalHistory = await _userMedicalService.fetchMedical(userId);
       if (!mounted) return;
-      setState(() {
-        if (medicalHistory['pre_existing'] == 'NA' || medicalHistory['pre_existing']?.isEmpty == true) {
+
+      // Add null checks for medicalHistory
+      if (medicalHistory != null) {
+        setState(() {
+          // Handle pre-existing conditions
+          final preExisting = medicalHistory['pre_existing'];
+          if (preExisting == 'NA' || preExisting?.isEmpty == true) {
+            _preExistingDropdownValue = 'No';
+            _preExistingController.text = '';
+          } else {
+            _preExistingDropdownValue = 'Yes';
+            _preExistingController.text = preExisting ?? "";
+          }
+
+          // Handle allergies
+          final allergies = medicalHistory['allergies'];
+          if (allergies == 'NA' || allergies?.isEmpty == true) {
+            _allergiesDropdownValue = 'No';
+            _allergiesController.text = '';
+          } else {
+            _allergiesDropdownValue = 'Yes';
+            _allergiesController.text = allergies ?? "";
+          }
+        });
+      } else {
+        // Handle the case where medicalHistory is null
+        setState(() {
           _preExistingDropdownValue = 'No';
           _preExistingController.text = '';
-        } else {
-          _preExistingDropdownValue = 'Yes';
-          _preExistingController.text = medicalHistory['pre_existing'] ?? "";
-        }
-
-        if (medicalHistory['allergies'] == 'NA' || medicalHistory['allergies']?.isEmpty == true) {
           _allergiesDropdownValue = 'No';
           _allergiesController.text = '';
-        } else {
-          _allergiesDropdownValue = 'Yes';
-          _allergiesController.text = medicalHistory['allergies'] ?? "";
-        }
-      });
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       DialogUtils.showErrorDialog(
@@ -109,9 +125,9 @@ class EditMedicalHistoryScreenState extends State<EditMedicalHistoryScreen> {
     if (userId == null) return;
 
     try {
-      await _profileService.updateMedicalHistory(
-        userId,
-        preExistingConditions: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : 'NA',
+      await _userMedicalService.updateMedical(
+        uid: userId,
+        preExisting: _preExistingDropdownValue == 'Yes' ? _preExistingController.text : 'NA',
         allergies: _allergiesDropdownValue == 'Yes' ? _allergiesController.text : 'NA',
       );
 

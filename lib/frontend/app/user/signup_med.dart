@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../utils/input_validator.dart';
-import '../utils/widget_utils.dart';
+import '../../../backend/utils/input_validator.dart';
+import '../../../../utils/widget_utils.dart';
 import 'signup_target.dart';
+import '../../../backend/utils/build_error_msg.dart';
 
 class SignupMed extends StatefulWidget {
   final String name;
@@ -138,15 +139,18 @@ class SignupMedState extends State<SignupMed> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: _preExistingController,
-                    decoration: InputValidator.buildInputDecoration(
-                      hintText: "e.g., Diabetes, Hypertension",
-                      hasError: _preExistingInputError,
+                    decoration: InputDecoration(
+                      hintText: "Enter your pre-existing conditions",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     keyboardType: TextInputType.text,
                     onChanged: (value) => setState(() => _preExistingInputError = false),
                   ),
                   if (_preExistingInputError)
-                    InputValidator.buildErrorMessage("Please enter your pre-existing conditions"),
+                    BuildErrorMsg.buildErrorMessage("Please enter your pre-existing conditions"),
                 ],
               ),
             const SizedBox(height: 25),
@@ -178,15 +182,18 @@ class SignupMedState extends State<SignupMed> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: _allergiesController,
-                    decoration: InputValidator.buildInputDecoration(
-                      hintText: "e.g., Peanuts, Shellfish",
-                      hasError: _allergiesInputError,
+                    decoration: InputDecoration(
+                      hintText: "Enter your allergies",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     keyboardType: TextInputType.text,
                     onChanged: (value) => setState(() => _allergiesInputError = false),
                   ),
                   if (_allergiesInputError)
-                    InputValidator.buildErrorMessage("Please enter your allergies"),
+                    BuildErrorMsg.buildErrorMessage("Please enter your allergies"),
                 ],
               ),
             const SizedBox(height: 25),

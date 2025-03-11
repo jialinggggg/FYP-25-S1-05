@@ -3,12 +3,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'orders_screen.dart';
 import 'recipes_screen.dart';
 import 'main_log_screen.dart';
-import 'login.dart';
+import '../shared/login.dart';
 import 'dashboard_screen.dart';
 import 'edit_profile.dart';
 import 'edit_goals.dart';
 import 'edit_med.dart';
-import '../services/profile_service.dart'; // Import ProfileService
+import '../../../backend/supabase/accounts_service.dart'; // Import the AccountService
+import '../../../backend/supabase/user_profiles_service.dart'; // Import the ProfileService
+import '../../../backend/supabase/user_medical_service.dart'; // Import the MedicalService
+import '../../../backend/supabase/user_goals_service.dart'; // Import the GoalService
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -18,7 +22,14 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class ProfileScreenState extends State<ProfileScreen> {
-  final ProfileService _profileService = ProfileService();
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  // Initialize services
+  late final AccountService _accountService;
+  late final UserProfilesService _profileService;
+  late final UserMedicalService _medicalService;
+  late final UserGoalsService _goalsService;
+
 
   /// User Information
   String name = "";
@@ -38,50 +49,58 @@ class ProfileScreenState extends State<ProfileScreen> {
 
   /// User Medical History
   String preExistingConditions = "";
-  String allergies = ""; 
+  String allergies = "";
 
   bool _isLoading = true; // Track loading state
 
   @override
   void initState() {
     super.initState();
+    // Initialize services
+    _accountService = AccountService(_supabase);
+    _profileService = UserProfilesService(_supabase);
+    _medicalService = UserMedicalService(_supabase);
+    _goalsService = UserGoalsService(_supabase);
+
+
+    // Fetch user data
     _fetchUserData();
   }
 
   /// Fetch User Data from Supabase
   Future<void> _fetchUserData() async {
     try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
         throw Exception('User not logged in');
       }
 
       // Fetch profile data
       final profileData = await _profileService.fetchProfile(userId);
-      final goalsData = await _profileService.fetchGoals(userId);
-      final medicalHistory = await _profileService.fetchMedicalHistory(userId);
-      final userEmail = await _profileService.fetchUserEmail(); // Fetch email
+      final goalsData = await _goalsService.fetchGoals(userId);
+      final medicalHistory = await _medicalService.fetchMedical(userId);
+      final accountData = await _accountService.fetchAccount(userId);
 
       setState(() {
         // Profile Data
-        name = profileData['name'] ?? "";
-        email = userEmail; // Use the fetched email
-        location = profileData['country'] ?? "";
-        birthDate = DateTime.tryParse(profileData['birth_date'] ?? "");
-        gender = profileData['gender'] ?? "";
-        startWeight = double.tryParse(profileData['weight']?.toString() ?? '0.0') ?? 0.0;
-        height = double.tryParse(profileData['height']?.toString() ?? '0.0') ?? 0.0;
+        name = profileData?['name'] ?? "";
+        email = accountData?['email'] ?? ""; // Fetch email from accounts table
+        location = profileData?['country'] ?? "";
+        birthDate = DateTime.tryParse(profileData?['birth_date'] ?? "");
+        gender = profileData?['gender'] ?? "";
+        startWeight = double.tryParse(profileData?['weight']?.toString() ?? '0.0') ?? 0.0;
+        height = double.tryParse(profileData?['height']?.toString() ?? '0.0') ?? 0.0;
 
         // Goals Data
-        desiredWeight = double.tryParse(goalsData['weight']?.toString() ?? '0.0') ?? 0.0;
-        dailyCalories = goalsData['daily_calories'] ?? 0;
-        fats = double.tryParse(goalsData['fats']?.toString() ?? '0.0') ?? 0.0;
-        protein = double.tryParse(goalsData['protein']?.toString() ?? '0.0') ?? 0.0;
-        carbs = double.tryParse(goalsData['carbs']?.toString() ?? '0.0') ?? 0.0;
+        desiredWeight = double.tryParse(goalsData?['weight']?.toString() ?? '0.0') ?? 0.0;
+        dailyCalories = goalsData?['daily_calories'] ?? 0;
+        fats = double.tryParse(goalsData?['fats']?.toString() ?? '0.0') ?? 0.0;
+        protein = double.tryParse(goalsData?['protein']?.toString() ?? '0.0') ?? 0.0;
+        carbs = double.tryParse(goalsData?['carbs']?.toString() ?? '0.0') ?? 0.0;
 
         // Medical History
-        preExistingConditions = medicalHistory['pre_existing'] ?? "";
-        allergies = medicalHistory['allergies'] ?? ""; 
+        preExistingConditions = medicalHistory?['pre_existing'] ?? "";
+        allergies = medicalHistory?['allergies'] ?? "";
 
         _isLoading = false;
       });
