@@ -66,6 +66,7 @@ class AddFoodScreenState extends State<AddFoodScreen> {
       return;
     }
 
+
     final url =
         'https://api.spoonacular.com/food/ingredients/search?query=$query&number=10&apiKey=$apiKey';
 
