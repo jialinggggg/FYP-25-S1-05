@@ -1,54 +1,42 @@
-// lib/screens/signup_detail.dart
 import 'package:flutter/material.dart';
 import 'signup_result.dart'; // Import the next page
 import '../services/profile_service.dart'; // Import the ProfileService
 import '../utils/input_validator.dart'; // Import the InputValidator
 
-class SignUpDetail extends StatefulWidget {
+class SignupBizDetail extends StatefulWidget {
   final String name;
-  final String location;
-  final String gender;
-  final DateTime birthDate;
-  final double weight;
-  final double height;
-  final String preExisting;
-  final String allergies;
-  final double desiredWeight;
-  final int dailyCalories;
-  final double protein;
-  final double carbs;
-  final double fats;
+  final String registration;
+  final String country;
+  final String address;
+  final String type;
+  final String description;
 
-  const SignUpDetail({
+  // Constructor to initialize business details
+  const SignupBizDetail({
     super.key,
     required this.name,
-    required this.location,
-    required this.gender,
-    required this.birthDate,
-    required this.weight,
-    required this.height,
-    required this.preExisting,
-    required this.allergies,
-    required this.desiredWeight,
-    required this.dailyCalories,
-    required this.protein,
-    required this.carbs,
-    required this.fats,
+    required this.registration,
+    required this.country,
+    required this.address,
+    required this.type,
+    required this.description,
   });
 
   @override
-  SignUpDetailState createState() => SignUpDetailState();
+  SignupBizDetailState createState() => SignupBizDetailState();
 }
 
-class SignUpDetailState extends State<SignUpDetail> {
-  final _emailController = TextEditingController(); // Controller for email
-  final _passwordController = TextEditingController(); // Controller for password
+class SignupBizDetailState extends State<SignupBizDetail> {
+  // Controllers for email and password input fields
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false; // Track loading state
   final ProfileService _profileService = ProfileService(); // Instance of ProfileService
 
-  bool _emailError = false; // Track if email field has an error
-  bool _passwordError = false; // Track if password field has an error
-  bool _emailExistsError = false; // Track if email exists error
+  // Validation error states
+  bool _emailError = false; 
+  bool _passwordError = false; 
+  bool _emailExistsError = false;
 
   // Password validation rules
   bool _hasMinLength = false;
@@ -67,8 +55,8 @@ class SignUpDetailState extends State<SignUpDetail> {
     });
   }
 
-  // Function to create account
-  Future<void> _createAccount() async {
+  // Function to create business account
+  Future<void> _createBusinessAccount() async {
     setState(() {
       _emailError = false;
       _passwordError = false;
@@ -108,30 +96,23 @@ class SignUpDetailState extends State<SignUpDetail> {
         return;
       }
 
-      // Create account
-      await _profileService.createUserAccount(
+      // Create business account
+      await _profileService.createBusinessAccount(
         email: email,
         password: password,
         name: widget.name,
-        location: widget.location,
-        gender: widget.gender,
-        birthDate: widget.birthDate,
-        weight: widget.weight,
-        height: widget.height,
-        preExisting: widget.preExisting,
-        allergies: widget.allergies,
-        desiredWeight: widget.desiredWeight,
-        dailyCalories: widget.dailyCalories,
-        protein: widget.protein,
-        carbs: widget.carbs,
-        fats: widget.fats,
+        registration: widget.registration,
+        country: widget.country,
+        address: widget.address,
+        type: widget.type,
+        description: widget.description,
       );
 
       // Navigate to the success page
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => SignupResult(type: "user")),
+          MaterialPageRoute(builder: (context) => SignupResult(type: "business")),
         );
       }
     } catch (e) {
@@ -158,10 +139,10 @@ class SignUpDetailState extends State<SignUpDetail> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header "Create Account" text
+            // Header "Create Business Account" text
             Center(
               child: Text(
-                "Create Account",
+                "Create Business Account",
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -171,13 +152,13 @@ class SignUpDetailState extends State<SignUpDetail> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                5,
+                2,
                 (index) => Container(
-                  width: 68,
+                  width: 179,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
-                    color: index == 4 ? Colors.green : Colors.black,
+                    color: index == 1 ? Colors.green : Colors.black,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -187,7 +168,7 @@ class SignUpDetailState extends State<SignUpDetail> {
 
             // Left-aligned text sections
             Text(
-              "Create Your Account!",
+              "Create Your Business Account!",
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
@@ -286,7 +267,7 @@ class SignUpDetailState extends State<SignUpDetail> {
                             borderRadius: BorderRadius.circular(40),
                           ),
                         ),
-                        onPressed: _createAccount,
+                        onPressed: _createBusinessAccount,
                         child: Text(
                           "Sign Up",
                           style: TextStyle(fontSize: 18, color: Colors.white),

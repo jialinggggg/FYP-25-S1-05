@@ -25,4 +25,10 @@ class Calculations {
       'carbs': (dailyCalories * 0.4 / 4).roundToDouble(), // 40% of calories from carbs
     };
   }
+
+  // Calculate BMI based on weight (kg) and height (cm)
+  static double calculateBMI(double weightInKg, double heightInCm) {
+    double heightInMeters = heightInCm / 100; // Convert cm to meters
+    return weightInKg / (heightInMeters * heightInMeters);
+  }   
 }
