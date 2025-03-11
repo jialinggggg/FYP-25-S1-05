@@ -8,8 +8,7 @@ class AddFoodScreen extends StatefulWidget {
   final String mealType;
   final List<Map<String, dynamic>> existingFoods;
 
-  const AddFoodScreen({Key? key, required this.mealType, required this.existingFoods})
-      : super(key: key);
+  const AddFoodScreen({super.key, required this.mealType, required this.existingFoods});
 
   @override
   AddFoodScreenState createState() => AddFoodScreenState();
@@ -126,8 +125,9 @@ class AddFoodScreenState extends State<AddFoodScreen> {
 
   /// Fetch detailed nutritional info for a specific food item
   Future<Map<String, dynamic>> _getFoodDetails(int foodId) async {
+    // Modified URL to include amount and unit parameters for proper nutrient values.
     final url =
-        'https://api.spoonacular.com/food/ingredients/$foodId/information?apiKey=$apiKey';
+        'https://api.spoonacular.com/food/ingredients/$foodId/information?apiKey=$apiKey&amount=1&unit=gram';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
