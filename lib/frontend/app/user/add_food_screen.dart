@@ -66,7 +66,6 @@ class AddFoodScreenState extends State<AddFoodScreen> {
       return;
     }
 
-
     final url =
         'https://api.spoonacular.com/food/ingredients/search?query=$query&number=10&apiKey=$apiKey';
 
@@ -126,7 +125,6 @@ class AddFoodScreenState extends State<AddFoodScreen> {
 
   /// Fetch detailed nutritional info for a specific food item
   Future<Map<String, dynamic>> _getFoodDetails(int foodId) async {
-    // Modified URL to include amount and unit parameters for proper nutrient values.
     final url =
         'https://api.spoonacular.com/food/ingredients/$foodId/information?apiKey=$apiKey&amount=1&unit=gram';
     try {
@@ -191,29 +189,29 @@ class AddFoodScreenState extends State<AddFoodScreen> {
   Future<void> addFood(Map<String, dynamic> food) async {
     print("Received food data: $food");
 
-    String mealName = food["name"] ?? "Unknown";
-    String mealType = food["category"] ?? "Unknown";
+    String name = food["name"] ?? "Unknown";
+    String type = food["category"] ?? "Unknown";
 
-    if (mealName == "Unknown" || mealType == "Unknown") {
+    if (name == "Unknown" || type == "Unknown") {
       print("Error: Missing required name or meal type.");
       return;
     }
 
-    int mealCalories = _parseInt(food["calories"]);
-    double mealCarbs = _parseFloat(food["carbs"]);
-    double mealProtein = _parseFloat(food["protein"]);
-    double mealFats = _parseFloat(food["fat"]);
+    int calories = _parseInt(food["calories"]);
+    double carbs = _parseFloat(food["carbs"]);
+    double protein = _parseFloat(food["protein"]);
+    double fats = _parseFloat(food["fat"]);
 
-    print("Parsed values - calories: $mealCalories, carbs: $mealCarbs, protein: $mealProtein, fats: $mealFats");
+    print("Parsed values - calories: $calories, carbs: $carbs, protein: $protein, fats: $fats");
 
     try {
       final response = await supabase.from('meal_entries').insert({
-        'meal_name': mealName,
-        'meal_calories': mealCalories,
-        'meal_carbs': mealCarbs,
-        'meal_protein': mealProtein,
-        'meal_fats': mealFats,
-        'meal_type': mealType,
+        'name': name,
+        'calories': calories,
+        'carbs': carbs,
+        'protein': protein,
+        'fats': fats,
+        'type': type,
       }).select();
 
       print("Supabase Response: $response");
