@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../shared/signup_result.dart'; // Import the next page
-import '../../../../services/profile_service.dart'; // Import the ProfileService
 import '../../../backend/supabase/business_profile.dart'; // Import the BusinessProfilesService
 import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthUsersService
 import '../../../backend/supabase/accounts_service.dart'; // Import the AccountService
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
-import '../../../backend/utils/build_error_msg.dart';
+import '../../../utils/widget_utils.dart';
+import '../shared/login.dart'; // Import the LoginScreen
 
 class SignupBizDetail extends StatefulWidget {
   final String name;
@@ -36,19 +36,98 @@ class SignupBizDetailState extends State<SignupBizDetail> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false; // Track loading state
-  final ProfileService _profileService = ProfileService(); // Instance of ProfileService
+
   final SupabaseClient _supabase = Supabase.instance.client; // Initialize Supabase client
 
   // Validation error states
   bool _emailError = false;
   bool _passwordError = false;
-  bool _emailExistsError = false;
 
   // Password validation rules
   bool _hasMinLength = false;
   bool _hasUppercase = false;
   bool _hasNumber = false;
   bool _hasSymbol = false;
+
+  // Function to show email exists dialog
+  void _showEmailExistsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon and Title
+                Icon(Icons.error_outline_rounded, 
+                    size: 56, 
+                    color: Colors.orange[800]),
+                const SizedBox(height: 16),
+                Text(
+                  "Email Already Registered",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                // Message
+                Text(
+                  "The email address you entered is already associated with an existing account.",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[600],
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text("Back"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green, // Changed to green
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text("Sign In"),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   // Function to validate password
   void _validatePassword(String password) {
@@ -66,7 +145,6 @@ class SignupBizDetailState extends State<SignupBizDetail> {
     setState(() {
       _emailError = false;
       _passwordError = false;
-      _emailExistsError = false;
     });
 
     final email = _emailController.text.trim();
@@ -93,15 +171,7 @@ class SignupBizDetailState extends State<SignupBizDetail> {
     });
 
     try {
-      // Check if email exists
-      final emailExists = await _profileService.isEmailAvailable(email);
-      if (!emailExists) {
-        setState(() {
-          _emailExistsError = true;
-        });
-        return;
-      }
-
+      // Initialize services
       final authService = AuthUsersService(_supabase);
       final accountService = AccountService(_supabase);
       final businessProfileService = BusinessProfilesService(_supabase);
@@ -135,21 +205,26 @@ class SignupBizDetailState extends State<SignupBizDetail> {
           MaterialPageRoute(builder: (context) => SignupResult(type: "business")),
         );
       }
-    } catch (e) {
-      // Show error message
+    } on AuthException catch (e) {
+    if (e.message.contains('already registered')) {
+      if (mounted) _showEmailExistsDialog();
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error: ${e.message}')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -213,14 +288,11 @@ class SignupBizDetailState extends State<SignupBizDetail> {
               onChanged: (value) {
                 setState(() {
                   _emailError = false;
-                  _emailExistsError = false;
                 });
               },
             ),
             if (_emailError) // Show error message if email is invalid
-              BuildErrorMsg.buildErrorMessage("Please enter a valid email address"),
-            if (_emailExistsError) // Show error message if email already exists
-              BuildErrorMsg.buildErrorMessage("This email is already registered"),
+              WidgetUtils.buildErrorMessage("Please enter a valid email address"),
             const SizedBox(height: 25),
 
             // Password label
@@ -249,7 +321,7 @@ class SignupBizDetailState extends State<SignupBizDetail> {
               },
             ),
             if (_passwordError) // Show error message if password is invalid
-              BuildErrorMsg.buildErrorMessage("Please enter a valid password"),
+              WidgetUtils.buildErrorMessage("Please enter a valid password"),
             const SizedBox(height: 10),
 
             // Password guidelines

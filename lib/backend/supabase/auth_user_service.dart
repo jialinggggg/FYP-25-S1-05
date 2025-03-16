@@ -25,10 +25,13 @@ class AuthUsersService {
 
       // Return the UID (id) of the newly created user
       return response.user?.id ?? '';
-    } catch (error) {
-      throw Exception('Unable to sign up user: $error');
-    }
+  } on AuthException catch (e) {
+    // Re-throw with original error message
+    throw AuthException(e.message);
+  } catch (e) {
+    throw Exception('Signup failed: $e');
   }
+}
 
   // Method to fetch the current authenticated user's UID
   Future<String?> fetchCurrentUserId() async {
@@ -98,6 +101,69 @@ class AuthUsersService {
       await _supabase.auth.admin.deleteUser(uid);
     } catch (e) {
       throw Exception('Failed to delete user: $e');
+    }
+  }
+
+  // New method to check if email exists
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      // Attempt to fetch users with the given email from auth.users
+      final result = await _supabase
+          .from('accounts')
+          .select('email')
+          .eq('email', email);
+
+      return result.isNotEmpty;
+    } catch (e) {
+      throw Exception('Error checking email: $e');
+    }
+  }
+
+  // Log in user and fetch role/status
+  Future<Map<String, dynamic>> logIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final AuthResponse response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) throw Exception('Login failed');
+
+      // Fetch additional user data from public.profiles table
+      final profile = await _supabase
+          .from('accounts')
+          .select('type, status')
+          .eq('uid', user.id)
+          .single();
+
+      return {
+        'uid': user.id,
+        'email': user.email,
+        'type' : profile['type'],
+        'status': profile['status'],
+      };
+    } on AuthException catch (e) {
+      throw Exception('Login error: ${e.message}');
+    } catch (e) {
+      throw Exception('Login error: $e');
+    }
+  }
+
+  // Check if user is logged in
+  bool isLoggedIn() {
+    return _supabase.auth.currentUser != null;
+  }
+
+  // Log out user
+  Future<void> logOut() async {
+    try {
+      await _supabase.auth.signOut();
+    } catch (e) {
+      throw Exception('Logout failed: $e');
     }
   }
 }

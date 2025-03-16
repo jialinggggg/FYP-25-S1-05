@@ -122,6 +122,7 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("My Recipes", style: TextStyle(color: Colors.green)),
         backgroundColor: Colors.white,
         elevation: 0,

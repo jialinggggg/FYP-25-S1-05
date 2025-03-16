@@ -33,6 +33,7 @@ dependencies:
   http: ^1.1.0
   supabase_flutter: ^2.0.0
   dropdown_search: ^5.0.6
+  
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -42,9 +43,14 @@ dependencies:
   encrypt: ^5.0.3
   flutter_secure_storage: ^9.0.0
   intl: ^0.20.2
-  fl_chart: ^0.55.1
+  fl_chart: ^0.63.0
   syncfusion_flutter_charts: ^28.2.6
   percent_indicator: ^4.2.2
+
+  flutter_riverpod: ^2.3.2  # For state management
+  go_router: ^10.0.0  # For navigation
+  flutter_svg: ^2.0.9  # For SVG icons
+  google_fonts: ^6.1.0  # For custom fonts
 
 dev_dependencies:
   flutter_test:

@@ -449,6 +449,7 @@ class MainLogScreenState extends State<MainLogScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Text(
           "Food Log",
           style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),

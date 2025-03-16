@@ -8,12 +8,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:nutri_app/frontend/app/main.dart'; 
+import 'package:nutri_app/frontend/web/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('Web app test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MyWebApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

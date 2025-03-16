@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import '../../../../services/country_service.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/dialog_utils.dart';
-import '../../../backend/utils/build_error_msg.dart';
+import '../../../utils/widget_utils.dart';
 import 'signup_biz_detail.dart'; // Assuming this is the next screen
 
 class SignupBizProfile extends StatefulWidget {
@@ -200,7 +200,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                     ),
                 ),
                 if (_businessNameError)
-                  BuildErrorMsg.buildErrorMessage("Please enter your business name"),
+                  WidgetUtils.buildErrorMessage("Please enter your business name"),
                 const SizedBox(height: 20),
 
                 // Business Registration No. Field
@@ -220,7 +220,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                     ),
                 ),
                 if (_businessRegNoError)
-                  BuildErrorMsg.buildErrorMessage("Please enter your business registration number"),
+                  WidgetUtils.buildErrorMessage("Please enter your business registration number"),
                 const SizedBox(height: 20),
 
                 // Country Selection Dropdown
@@ -263,7 +263,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                         ),
                       ),
                 if (_countryError)
-                  BuildErrorMsg.buildErrorMessage("Please select your country"),
+                  WidgetUtils.buildErrorMessage("Please select your country"),
                 const SizedBox(height: 20),
 
                 // Business Address Field
@@ -283,7 +283,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                     ),
                 ),
                 if (_addressError)
-                  BuildErrorMsg.buildErrorMessage("Please enter your business address"),
+                  WidgetUtils.buildErrorMessage("Please enter your business address"),
                 const SizedBox(height: 20),
 
                 // Type of Services Provided Dropdown
@@ -320,7 +320,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                   ),
                 ),
                 if (_serviceTypeError)
-                  BuildErrorMsg.buildErrorMessage("Please select the type of services provided"),
+                  WidgetUtils.buildErrorMessage("Please select the type of services provided"),
                 const SizedBox(height: 20),
 
                 // Brief Description of Services Field
@@ -341,7 +341,7 @@ class SignupBizProfileState extends State<SignupBizProfile> {
                   maxLines: 3, // Allow multiple lines for description
                 ),
                 if (_servicesDescriptionError)
-                  BuildErrorMsg.buildErrorMessage("Please provide a brief description of your services"),
+                  WidgetUtils.buildErrorMessage("Please provide a brief description of your services"),
                 const SizedBox(height: 100), // Extra space for scrolling
               ],
             ),

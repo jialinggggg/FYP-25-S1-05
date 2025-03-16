@@ -150,6 +150,7 @@ class OrdersScreenState extends State<OrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("Products", style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.white,

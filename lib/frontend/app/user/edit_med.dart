@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../utils/widget_utils.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/dialog_utils.dart';
 import '../../../backend/supabase/user_medical_service.dart'; // Ensure this import is correct
 

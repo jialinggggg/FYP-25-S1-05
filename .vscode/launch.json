@@ -17,6 +17,25 @@
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
+        },
+        
+        // Mobile (emulator) configuration
+        { 
+            "name": "Launch Mobile (app/main.dart)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/frontend/app/main.dart",
+            "deviceId": "emulator", // Targets Android emulator
+            "args": []
+        },
+        // Web (Chrome) configuration
+        {
+            "name": "Launch Web (web/main.dart)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/frontend/web/main.dart",
+            "deviceId": "chrome", // Targets Chrome browser
+            "args": []
         }
-    ]
+        ]
 }

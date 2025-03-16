@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
 import '../shared/signup_result.dart'; // Import the next page
 import '../../../backend/supabase/accounts_service.dart'; // Import the AccountService
@@ -8,7 +8,9 @@ import '../../../backend/supabase/user_medical_service.dart'; // Import the Medi
 import '../../../backend/supabase/user_goals_service.dart'; // Import the GoalService
 import '../../../backend/supabase/user_measurements_service.dart'; // Import the MeasurementsService
 import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthService
-import '../../../backend/utils/build_error_msg.dart';
+import '../../../utils/widget_utils.dart';
+import '../shared/login.dart'; // Import the LoginScreen
+
 
 class SignUpDetail extends StatefulWidget {
   final String name;
@@ -64,6 +66,86 @@ class SignUpDetailState extends State<SignUpDetail> {
   // Supabase client
   final SupabaseClient _supabase = Supabase.instance.client;
 
+  // Function to show email exists dialog
+  void _showEmailExistsDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon and Title
+                Icon(Icons.error_outline_rounded, 
+                    size: 56, 
+                    color: Colors.orange[800]),
+                const SizedBox(height: 16),
+                Text(
+                  "Email Already Registered",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                // Message
+                Text(
+                  "The email address you entered is already associated with an existing account.",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey[600],
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text("Back"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green, // Changed to green
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text("Sign In"),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                    },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // Function to validate password
   void _validatePassword(String password) {
     final validationResult = InputValidator.validatePassword(password);
@@ -114,6 +196,15 @@ class SignUpDetailState extends State<SignUpDetail> {
       final medicalService = UserMedicalService(_supabase);
       final goalsService = UserGoalsService(_supabase);
       final measurementService = UserMeasurementService(_supabase);
+
+      // Check if email already exists
+      final emailExists = await authService.checkEmailExists(email);
+      if (emailExists) {
+        setState(() {
+          _emailExistsError = true;
+        });
+        return;
+      }
 
       // Step 1: Sign up the user using AuthUsersService
       final uid = await authService.signUp(email: email, password: password);
@@ -169,21 +260,26 @@ class SignUpDetailState extends State<SignUpDetail> {
           MaterialPageRoute(builder: (context) => SignupResult(type: "user")),
         );
       }
-    } catch (e) {
-      // Handle errors
+    } on AuthException catch (e) {
+    if (e.message.contains('already registered')) {
+      if (mounted) _showEmailExistsDialog();
+    } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error: ${e.message}')),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -252,9 +348,9 @@ class SignUpDetailState extends State<SignUpDetail> {
               },
             ),
             if (_emailError) // Show error message if email is invalid
-              BuildErrorMsg.buildErrorMessage("Please enter a valid email address"),
+              WidgetUtils.buildErrorMessage("Please enter a valid email address"),
             if (_emailExistsError) // Show error message if email already exists
-              BuildErrorMsg.buildErrorMessage("This email is already registered"),
+              WidgetUtils.buildErrorMessage("This email is already registered"),
             const SizedBox(height: 25),
 
             // Password label
@@ -283,7 +379,7 @@ class SignUpDetailState extends State<SignUpDetail> {
               },
             ),
             if (_passwordError) // Show error message if password is invalid
-              BuildErrorMsg.buildErrorMessage("Please enter a valid password"),
+              WidgetUtils.buildErrorMessage("Please enter a valid password"),
             const SizedBox(height: 10),
 
             // Password guidelines

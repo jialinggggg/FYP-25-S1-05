@@ -93,4 +93,60 @@ class AccountService {
       throw Exception('Failed to delete account: $e');
     }
   }
+
+  /// Check if the logged-in user is an admin
+  Future<bool> isAdmin() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User is not logged in');
+      }
+
+      final response = await _supabase
+          .from('accounts')
+          .select('type')
+          .eq('uid', user.id)
+          .single();
+
+      return response['type'] == 'admin';
+    } catch (e) {
+      throw Exception('Error checking admin status: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllUserAccounts() async {
+  try {
+    final isUserAdmin = await isAdmin();
+    if (!isUserAdmin) {
+      throw Exception('Unauthorized: Only admins can fetch user accounts');
+    }
+
+    final response = await _supabase
+        .from('accounts')
+        .select('*, user_profiles(*)!left(*)')
+        .eq('type', 'user');
+
+    return response;
+  } catch (e) {
+    throw Exception('Error fetching user accounts: $e');
+  }
+}
+
+  Future<List<Map<String, dynamic>>> fetchAllBusinessAccounts() async {
+    try {
+      final isUserAdmin = await isAdmin();
+      if (!isUserAdmin) {
+        throw Exception('Unauthorized: Only admins can fetch business accounts');
+      }
+
+      final response = await _supabase
+          .from('accounts')
+          .select('*, business_profiles!left(*)') // Ensures LEFT JOIN behavior
+          .eq('type', 'business');
+
+      return response;
+    } catch (e) {
+      throw Exception('Error fetching business accounts: $e');
+    }
+  }
 }

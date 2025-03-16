@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import '../../../../services/country_service.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/dialog_utils.dart';
 import 'signup_you.dart';
-import '../../../backend/utils/build_error_msg.dart';
+import '../../../utils/widget_utils.dart';
+
 
 class SignupWelcome extends StatefulWidget {
   const SignupWelcome({super.key});
@@ -142,7 +143,7 @@ class SignupWelcomeState extends State<SignupWelcome> {
               
             ),
             if (_nameError)
-              BuildErrorMsg.buildErrorMessage("Please enter your name"),
+              WidgetUtils.buildErrorMessage("Please enter your name"),
             const SizedBox(height: 30),
 
             // Country Selection Dropdown
@@ -185,7 +186,7 @@ class SignupWelcomeState extends State<SignupWelcome> {
                     ),
                   ),
             if (_countryError)
-              BuildErrorMsg.buildErrorMessage("Please select your country"),
+              WidgetUtils.buildErrorMessage("Please select your country"),
             const SizedBox(height: 30),
 
             const Spacer(), // Pushes button to bottom

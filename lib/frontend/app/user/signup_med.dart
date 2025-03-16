@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/widget_utils.dart';
 import 'signup_target.dart';
-import '../../../backend/utils/build_error_msg.dart';
 
 class SignupMed extends StatefulWidget {
   final String name;
@@ -150,7 +149,7 @@ class SignupMedState extends State<SignupMed> {
                     onChanged: (value) => setState(() => _preExistingInputError = false),
                   ),
                   if (_preExistingInputError)
-                    BuildErrorMsg.buildErrorMessage("Please enter your pre-existing conditions"),
+                    WidgetUtils.buildErrorMessage("Please enter your pre-existing conditions"),
                 ],
               ),
             const SizedBox(height: 25),
@@ -193,7 +192,7 @@ class SignupMedState extends State<SignupMed> {
                     onChanged: (value) => setState(() => _allergiesInputError = false),
                   ),
                   if (_allergiesInputError)
-                    BuildErrorMsg.buildErrorMessage("Please enter your allergies"),
+                    WidgetUtils.buildErrorMessage("Please enter your allergies"),
                 ],
               ),
             const SizedBox(height: 25),

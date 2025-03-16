@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/date_picker.dart';
 import '../../../../utils/dialog_utils.dart';
 import 'signup_med.dart';
-import '../../../backend/utils/build_error_msg.dart';
+import '../../../utils/widget_utils.dart';
+
 
 // Stateful widget for user signup page
 class SignupYou extends StatefulWidget {
@@ -179,7 +180,7 @@ class SignupYouState extends State<SignupYou> {
               ],
             ),
             if (_genderError)
-              BuildErrorMsg.buildErrorMessage("Please select your gender"),
+              WidgetUtils.buildErrorMessage("Please select your gender"),
             const SizedBox(height: 25),
 
             // Birthdate input field with calendar icon
@@ -213,7 +214,7 @@ class SignupYouState extends State<SignupYou> {
               ],
             ),
             if (_dateError)
-              BuildErrorMsg.buildErrorMessage("Please enter your birthdate"),
+              WidgetUtils.buildErrorMessage("Please enter your birthdate"),
             const SizedBox(height: 25),
 
             // Height Field
@@ -235,7 +236,7 @@ class SignupYouState extends State<SignupYou> {
               onChanged: (value) => setState(() => _heightError = false),
             ),
             if (_heightError)
-              BuildErrorMsg.buildErrorMessage("Please enter a valid height (50-300 cm)"),
+              WidgetUtils.buildErrorMessage("Please enter a valid height (50-300 cm)"),
             const SizedBox(height: 25),
 
             // Weight Field
@@ -257,7 +258,7 @@ class SignupYouState extends State<SignupYou> {
               onChanged: (value) => setState(() => _weightError = false),
             ),
             if (_weightError)
-              BuildErrorMsg.buildErrorMessage("Please enter a valid weight (20-500 kg)"),
+              WidgetUtils.buildErrorMessage("Please enter a valid weight (20-500 kg)"),
             const SizedBox(height: 25),
 
             const Spacer(),

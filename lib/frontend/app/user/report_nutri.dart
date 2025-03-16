@@ -344,31 +344,48 @@ class _NutritionReportScreenState extends State<NutritionReportScreen> {
   }
 
   Widget _buildPieChart(Map<String, double> data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: SizedBox(
-        height: 300,
-        child: SfCircularChart(
-          series: <CircularSeries>[
-            PieSeries<MapEntry<String, double>, String>(
-              dataSource: data.entries.toList(),
-              xValueMapper: (entry, _) => entry.key,
-              yValueMapper: (entry, _) => entry.value,
-              dataLabelSettings: const DataLabelSettings(
-                isVisible: true,
-                labelPosition: ChartDataLabelPosition.outside,
+  // Calculate total for percentage calculation
+  final total = data.values.fold(0.0, (sum, value) => sum + value);
+
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: SizedBox(
+      height: 300,
+      child: SfCircularChart(
+        series: <CircularSeries>[
+          PieSeries<MapEntry<String, double>, String>(
+            dataSource: data.entries.toList(),
+            xValueMapper: (entry, _) => entry.key,
+            yValueMapper: (entry, _) => entry.value,
+            dataLabelMapper: (entry, _) {
+              final percentage = ((entry.value / total) * 100).toStringAsFixed(1);
+              return '${entry.key}\n$percentage%';
+            },
+            dataLabelSettings: const DataLabelSettings(
+              isVisible: true,
+              labelPosition: ChartDataLabelPosition.outside,
+              textStyle: TextStyle(fontSize: 12),
+              connectorLineSettings: ConnectorLineSettings(
+                length: '20%',
+                type: ConnectorType.curve,
               ),
-              pointColorMapper: (entry, _) => _getColor(entry.key),
-            )
-          ],
+            ),
+            pointColorMapper: (entry, _) => _getColor(entry.key),
+          )
+        ],
+        legend: Legend(
+          isVisible: true,
+          position: LegendPosition.bottom,
+          overflowMode: LegendItemOverflowMode.wrap,
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Color _getColor(String key) {
     switch (key) {
@@ -430,80 +447,86 @@ class _NutritionReportScreenState extends State<NutritionReportScreen> {
   }
 
   Widget _buildNutritionChart() {
-    // Group entries by date and calculate totals
-    final Map<DateTime, Map<String, dynamic>> dailyTotals = {};
+  // Group entries by date and calculate totals
+  final Map<DateTime, Map<String, dynamic>> dailyTotals = {};
 
-    for (final entry in _mealEntries) {
-      final date = DateTime(entry.date.year, entry.date.month, entry.date.day);
-      if (!dailyTotals.containsKey(date)) {
-        dailyTotals[date] = {
-          'calories': 0,
-          'protein': 0.0,
-          'carbs': 0.0,
-          'fats': 0.0,
-        };
-      }
-
-      dailyTotals[date]!['calories'] += entry.calories;
-      dailyTotals[date]!['protein'] += entry.protein;
-      dailyTotals[date]!['carbs'] += entry.carbs;
-      dailyTotals[date]!['fats'] += entry.fats;
+  for (final entry in _mealEntries) {
+    final date = DateTime(entry.date.year, entry.date.month, entry.date.day);
+    if (!dailyTotals.containsKey(date)) {
+      dailyTotals[date] = {
+        'calories': 0,
+        'protein': 0.0,
+        'carbs': 0.0,
+        'fats': 0.0,
+      };
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: SizedBox(
-        height: 300,
-        child: SfCartesianChart(
-          primaryXAxis: DateTimeAxis(
-            dateFormat: DateFormat.MMMd(),
-            intervalType: DateTimeIntervalType.days,
-          ),
-          series: _selectedMetric == 'calories'
-              ? <CartesianSeries>[
-                  LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
-                    dataSource: dailyTotals.entries.toList(),
-                    xValueMapper: (entry, _) => entry.key,
-                    yValueMapper: (entry, _) => entry.value['calories'],
-                    name: 'Calories',
-                    color: Colors.green,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                  )
-                ]
-              : <CartesianSeries>[
-                  LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
-                    dataSource: dailyTotals.entries.toList(),
-                    xValueMapper: (entry, _) => entry.key,
-                    yValueMapper: (entry, _) => entry.value['protein'],
-                    name: 'Protein',
-                    color: Colors.green,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                  ),
-                  LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
-                    dataSource: dailyTotals.entries.toList(),
-                    xValueMapper: (entry, _) => entry.key,
-                    yValueMapper: (entry, _) => entry.value['carbs'],
-                    name: 'Carbs',
-                    color: Colors.orange,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                  ),
-                  LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
-                    dataSource: dailyTotals.entries.toList(),
-                    xValueMapper: (entry, _) => entry.key,
-                    yValueMapper: (entry, _) => entry.value['fats'],
-                    name: 'Fats',
-                    color: Colors.red,
-                    markerSettings: const MarkerSettings(isVisible: true),
-                  ),
-                ],
-        ),
-      ),
-    );
+    dailyTotals[date]!['calories'] += entry.calories;
+    dailyTotals[date]!['protein'] += entry.protein;
+    dailyTotals[date]!['carbs'] += entry.carbs;
+    dailyTotals[date]!['fats'] += entry.fats;
   }
+
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: SizedBox(
+      height: 300,
+      child: SfCartesianChart(
+        primaryXAxis: DateTimeAxis(
+          dateFormat: DateFormat.MMMd(),
+          intervalType: DateTimeIntervalType.days,
+        ),
+        legend: Legend(
+          isVisible: true,
+          position: LegendPosition.bottom,
+          overflowMode: LegendItemOverflowMode.wrap,
+          orientation: LegendItemOrientation.horizontal,
+        ),
+        series: _selectedMetric == 'calories'
+            ? <CartesianSeries>[
+                LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
+                  dataSource: dailyTotals.entries.toList(),
+                  xValueMapper: (entry, _) => entry.key,
+                  yValueMapper: (entry, _) => entry.value['calories'],
+                  name: 'Calories',
+                  color: Colors.green,
+                  markerSettings: const MarkerSettings(isVisible: true),
+                )
+              ]
+            : <CartesianSeries>[
+                LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
+                  dataSource: dailyTotals.entries.toList(),
+                  xValueMapper: (entry, _) => entry.key,
+                  yValueMapper: (entry, _) => entry.value['protein'],
+                  name: 'Protein',
+                  color: Colors.green,
+                  markerSettings: const MarkerSettings(isVisible: true),
+                ),
+                LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
+                  dataSource: dailyTotals.entries.toList(),
+                  xValueMapper: (entry, _) => entry.key,
+                  yValueMapper: (entry, _) => entry.value['carbs'],
+                  name: 'Carbs',
+                  color: Colors.orange,
+                  markerSettings: const MarkerSettings(isVisible: true),
+                ),
+                LineSeries<MapEntry<DateTime, Map<String, dynamic>>, DateTime>(
+                  dataSource: dailyTotals.entries.toList(),
+                  xValueMapper: (entry, _) => entry.key,
+                  yValueMapper: (entry, _) => entry.value['fats'],
+                  name: 'Fats',
+                  color: Colors.red,
+                  markerSettings: const MarkerSettings(isVisible: true),
+                ),
+              ],
+      ),
+    ),
+  );
+}
 
   Widget _buildDailyDataTable() {
     return SingleChildScrollView(

@@ -12,7 +12,7 @@ import '../../../backend/supabase/accounts_service.dart'; // Import the AccountS
 import '../../../backend/supabase/user_profiles_service.dart'; // Import the ProfileService
 import '../../../backend/supabase/user_medical_service.dart'; // Import the MedicalService
 import '../../../backend/supabase/user_goals_service.dart'; // Import the GoalService
-
+import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthUserService
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,11 +25,11 @@ class ProfileScreenState extends State<ProfileScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   // Initialize services
+  late final AuthUsersService _authService;
   late final AccountService _accountService;
   late final UserProfilesService _profileService;
   late final UserMedicalService _medicalService;
   late final UserGoalsService _goalsService;
-
 
   /// User Information
   String name = "";
@@ -57,11 +57,11 @@ class ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     // Initialize services
+    _authService = AuthUsersService(_supabase);
     _accountService = AccountService(_supabase);
     _profileService = UserProfilesService(_supabase);
     _medicalService = UserMedicalService(_supabase);
     _goalsService = UserGoalsService(_supabase);
-
 
     // Fetch user data
     _fetchUserData();
@@ -80,6 +80,8 @@ class ProfileScreenState extends State<ProfileScreen> {
       final goalsData = await _goalsService.fetchGoals(userId);
       final medicalHistory = await _medicalService.fetchMedical(userId);
       final accountData = await _accountService.fetchAccount(userId);
+
+      if (!mounted) return; // Ensure the widget is still mounted
 
       setState(() {
         // Profile Data
@@ -227,11 +229,27 @@ class ProfileScreenState extends State<ProfileScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => LoginScreen()),
-                            );
+                          onPressed: () async {
+                            try {
+                              // Call the logout method from AuthUsersService
+                              await _authService.logOut();
+
+                              // Check if the widget is still mounted before navigating
+                              if (context.mounted) {
+                                // Navigate to login screen and clear navigation stack
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                                  (Route<dynamic> route) => false,
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Logout failed: $e')),
+                                );
+                              }
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../user/main_log_screen.dart';
 import 'signup_type.dart'; // Import SignupWelcome screen
-import '../../../../services/auth_service.dart'; // Import AuthService
 import '../../../../utils/dialog_utils.dart'; // Import DialogUtils
-import '../../../backend/utils/input_validator.dart'; // Import InputValidator
+import '../../../utils/input_validator.dart'; // Import InputValidator
 import '../business/biz_partner_dashboard.dart'; // Import BizPartnerDashboard screen
+import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthUserService
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,8 +18,14 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controllers for email and password input fields
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService(); // Authentication service instance
+  late final AuthUsersService _authService; // Initialize AuthUserService
   bool _isLoading = false; // Track loading state
+
+  @override
+void initState() {
+  super.initState();
+  _authService = AuthUsersService(Supabase.instance.client); // Add this
+}
 
   Future<void> _login() async {
     final email = _emailController.text.trim();
@@ -62,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Attempt to log in using AuthService
-      final userRole = await _authService.login(email, password);
+      final userRole = await _authService.logIn(email:email, password: password);
 
       // Check if the user account is active
       if (userRole['status'] != 'active') {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../services/country_service.dart';
-import '../../../backend/utils/input_validator.dart';
+import '../../../utils/input_validator.dart';
 import '../../../../utils/date_picker.dart';
 import '../../../../utils/widget_utils.dart';
 import '../../../../utils/dialog_utils.dart';
