@@ -258,14 +258,14 @@ class AddRecipeScreenState extends State<AddRecipeScreen> {
   };
 
   try {
-    final response = await supabase.from('recipes').insert(newRecipe).select();
-    print("Recipe saved: $response");
+    await supabase.from('recipes').insert(newRecipe).select();
     Navigator.pop(context, newRecipe);
   } catch (error) {
-    print("Error saving recipe: $error");
-    ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted){
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Failed to save recipe: $error")),
     );
+    }
   }
 }
 

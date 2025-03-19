@@ -1,251 +1,160 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../backend/supabase/meal_entries_service.dart';
+import '../../../services/spoonacular_api_service.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String mealType;
-  final List<Map<String, dynamic>> existingFoods;
 
-  const AddFoodScreen({super.key, required this.mealType, required this.existingFoods});
+  const AddFoodScreen({super.key, required this.mealType}); // Use super.key
 
   @override
   AddFoodScreenState createState() => AddFoodScreenState();
 }
 
 class AddFoodScreenState extends State<AddFoodScreen> {
+  final SpoonacularApiService _spoonacularApiService = SpoonacularApiService();
+  final MealEntriesService _mealEntriesService = MealEntriesService(Supabase.instance.client);
   final TextEditingController _searchController = TextEditingController();
-  final SupabaseClient supabase = Supabase.instance.client;
-  Timer? _debounce;
 
-  // Cache to store search results to avoid redundant API calls
-  final Map<String, List<Map<String, dynamic>>> _searchCache = {};
-
-  List<Map<String, dynamic>> displayedFoods = [];
-  List<Map<String, dynamic>> selectedFoods = [];
-
-  // Spoonacular API Key
-  final String apiKey = "fede250789e24f828573be12cb0d08a8";
+  List<Map<String, dynamic>> _loggedMeals = [];
+  List<Map<String, dynamic>> _searchResults = [];
+  final List<Map<String, dynamic>> _selectedMeals = [];
 
   @override
   void initState() {
     super.initState();
-    selectedFoods = List.from(widget.existingFoods);
+    _fetchLoggedMeals();
+  }
 
-    // Debounce the search to reduce API calls
-    _searchController.addListener(() {
-      if (_debounce?.isActive ?? false) _debounce!.cancel();
-      _debounce = Timer(const Duration(milliseconds: 500), () {
-        _searchFoods(_searchController.text);
+  Future<void> _fetchLoggedMeals() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return; // Exit if user is not logged in
+
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final meals = await _mealEntriesService.fetchMealEntries(userId);
+      setState(() {
+        _loggedMeals = meals
+            .where((meal) =>
+                meal['type'] == widget.mealType &&
+                DateTime.parse(meal['created_at']).isAfter(startOfDay) &&
+                DateTime.parse(meal['created_at']).isBefore(endOfDay))
+            .toList();
       });
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching logged meals: $e')),
+        );
+      }
+    }
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  /// 🔍 Fetch food data from Spoonacular API with caching
-  Future<void> _searchFoods(String query) async {
+  Future<void> _searchMeals(String query) async {
     if (query.isEmpty) {
       setState(() {
-        displayedFoods = [];
+        _searchResults = [];
       });
       return;
     }
-
-    // If we've already searched this query, use cached results.
-    if (_searchCache.containsKey(query)) {
-      setState(() {
-        displayedFoods = _searchCache[query]!;
-      });
-      return;
-    }
-
-    final url =
-        'https://api.spoonacular.com/food/ingredients/search?query=$query&number=10&apiKey=$apiKey';
 
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        List<dynamic> results = jsonResponse['results'] ?? [];
-
-        // Fetch detailed info for each food item
-        List<Map<String, dynamic>> tempFoods = [];
-        for (var food in results) {
-          String foodName = food["name"] ?? "No Name";
-          int foodId = food["id"];
-
-          final detailedResponse = await _getFoodDetails(foodId);
-
-          tempFoods.add({
-            "name": foodName,
-            "calories": detailedResponse["calories"]?.toString() ?? "N/A",
-            "carbs": detailedResponse["carbs"]?.toString() ?? "N/A",
-            "protein": detailedResponse["protein"]?.toString() ?? "N/A",
-            "fat": detailedResponse["fat"]?.toString() ?? "N/A",
-            "category": "Ingredient",
-          });
-        }
-
-        // Cache the results for this query
-        _searchCache[query] = tempFoods;
-
-        setState(() {
-          displayedFoods = tempFoods;
-        });
-      } else if (response.statusCode == 402) {
-        print("Error fetching data: 402 Payment Required. Check your API quota.");
-        setState(() {
-          displayedFoods = [];
-        });
-      } else if (response.statusCode == 429) {
-        print("Error fetching data: 429 Too Many Requests. Slow down your requests.");
-        setState(() {
-          displayedFoods = [];
-        });
-      } else {
-        print("Error fetching data: ${response.statusCode}");
-        setState(() {
-          displayedFoods = [];
-        });
+      final results = await _spoonacularApiService.searchMeals(query);
+      setState(() {
+        _searchResults = results;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error searching meals: $e')),
+        );
       }
-    } catch (e) {
-      print("Error: $e");
-      setState(() {
-        displayedFoods = [];
-      });
     }
   }
 
-  /// Fetch detailed nutritional info for a specific food item
-  Future<Map<String, dynamic>> _getFoodDetails(int foodId) async {
-    final url =
-        'https://api.spoonacular.com/food/ingredients/$foodId/information?apiKey=$apiKey&amount=1&unit=gram';
-    try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        List<dynamic> nutrients = jsonResponse['nutrition']?['nutrients'] ?? [];
-
-        double calories = 0;
-        double carbs = 0;
-        double protein = 0;
-        double fat = 0;
-
-        for (var nutrient in nutrients) {
-          switch (nutrient['name']) {
-            case 'Calories':
-              calories = nutrient['amount']?.toDouble() ?? 0;
-              break;
-            case 'Carbohydrates':
-              carbs = nutrient['amount']?.toDouble() ?? 0;
-              break;
-            case 'Protein':
-              protein = nutrient['amount']?.toDouble() ?? 0;
-              break;
-            case 'Fat':
-              fat = nutrient['amount']?.toDouble() ?? 0;
-              break;
-          }
-        }
-
-        return {
-          "calories": calories,
-          "carbs": carbs,
-          "protein": protein,
-          "fat": fat,
-        };
-      } else if (response.statusCode == 402) {
-        print("Error fetching detailed food info: 402 Payment Required.");
-      } else if (response.statusCode == 429) {
-        print("Error fetching detailed food info: 429 Too Many Requests.");
-      } else {
-        print("Error fetching detailed food info: ${response.statusCode}");
-      }
-      return {
-        "calories": 0,
-        "carbs": 0,
-        "protein": 0,
-        "fat": 0,
-      };
-    } catch (e) {
-      print("Error: $e");
-      return {
-        "calories": 0,
-        "carbs": 0,
-        "protein": 0,
-        "fat": 0,
-      };
-    }
-  }
-
-  /// ✅ Insert selected food into Supabase
-  Future<void> addFood(Map<String, dynamic> food) async {
-    print("Received food data: $food");
-
-    String name = food["name"] ?? "Unknown";
-    String type = food["category"] ?? "Unknown";
-
-    if (name == "Unknown" || type == "Unknown") {
-      print("Error: Missing required name or meal type.");
-      return;
-    }
-
-    int calories = _parseInt(food["calories"]);
-    double carbs = _parseFloat(food["carbs"]);
-    double protein = _parseFloat(food["protein"]);
-    double fats = _parseFloat(food["fat"]);
-
-    print("Parsed values - calories: $calories, carbs: $carbs, protein: $protein, fats: $fats");
-
-    try {
-      final response = await supabase.from('meal_entries').insert({
-        'name': name,
-        'calories': calories,
-        'carbs': carbs,
-        'protein': protein,
-        'fats': fats,
-        'type': type,
-      }).select();
-
-      print("Supabase Response: $response");
-
-      setState(() {
-        selectedFoods.add(food);
-      });
-    } catch (e) {
-      print("Supabase Insert Error: $e");
-    }
-  }
-
-  int _parseInt(dynamic value) {
-    if (value == null || value == "N/A") return 0;
-    if (value is String) {
-      final parsed = int.tryParse(value);
-      return parsed ?? 0;
-    }
-    return value is int ? value : 0;
-  }
-
-  double _parseFloat(dynamic value) {
-    if (value == null || value == "N/A") return 0.0;
-    if (value is String) {
-      final parsed = double.tryParse(value);
-      return parsed ?? 0.0;
-    }
-    return value is double ? value : 0.0;
-  }
-
-  void removeFood(int index) {
+  void _addMeal(Map<String, dynamic> meal) {
     setState(() {
-      selectedFoods.removeAt(index);
+      _selectedMeals.add(meal);
     });
+  }
+
+  void _removeMeal(int index, bool isLoggedMeal) {
+    setState(() {
+      if (isLoggedMeal) {
+        // Mark logged meal for deletion
+        _loggedMeals[index]['markedForDeletion'] = true;
+      } else {
+        // Remove unsaved meal
+        _selectedMeals.removeAt(index - _loggedMeals.length);
+      }
+    });
+  }
+
+  Future<void> _saveMeals() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return; // Exit if user is not logged in
+
+      // Delete marked meals from the database
+      for (var meal in _loggedMeals) {
+        if (meal['markedForDeletion'] == true) {
+          await _mealEntriesService.deleteMealEntry(meal['meal_id']);
+        }
+      }
+
+      // Add new meals to the database
+      for (var meal in _selectedMeals) {
+        await _mealEntriesService.insertMealEntry(
+          spoonacularId: meal['id'],
+          uid: userId,
+          name: meal['title'],
+          calories: _getCalories(meal), // Use _getCalories for int
+          carbs: _getNutrientValue(meal, 'Carbohydrates'), // Already double
+          protein: _getNutrientValue(meal, 'Protein'), // Already double
+          fats: _getNutrientValue(meal, 'Fat'), // Already double
+          type: widget.mealType,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Meals saved successfully!')),
+        );
+
+        // Navigate back to MainLogScreen with updated data
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving meals: $e')),
+        );
+      }
+    }
+  }
+
+  // Helper method to get calories as int
+  int _getCalories(Map<String, dynamic> meal) {
+    final nutrients = meal['nutrition']['nutrients'] as List<dynamic>;
+    final nutrient = nutrients.firstWhere(
+      (n) => n['name'] == 'Calories',
+      orElse: () => {'amount': 0.0}, // Default value if nutrient is not found
+    );
+    return nutrient['amount'].toInt(); // Convert to int
+  }
+
+  // Helper method to get other nutrients as double
+  double _getNutrientValue(Map<String, dynamic> meal, String nutrientName) {
+    final nutrients = meal['nutrition']['nutrients'] as List<dynamic>;
+    final nutrient = nutrients.firstWhere(
+      (n) => n['name'] == nutrientName,
+      orElse: () => {'amount': 0.0}, // Default value if nutrient is not found
+    );
+    return nutrient['amount'] as double; // Return as double
   }
 
   @override
@@ -259,134 +168,133 @@ class AddFoodScreenState extends State<AddFoodScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context, selectedFoods);
+            Navigator.pop(context);
           },
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchBar(),
-            const SizedBox(height: 10),
-            const Text(
-              "Nutrition Logged",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Column(
-                children: [
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Logged Meals Section (1/3 of the screen)
+          Container(
+            height: MediaQuery.of(context).size.height / 3,
+            color: Colors.grey[200], // Light grey background
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Nutrition Logged",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                if (_loggedMeals.isEmpty && _selectedMeals.isEmpty)
+                  const Center(
+                    child: Text("Nothing here yet! Add your meal to see your progress."),
+                  ),
+                if (_loggedMeals.isNotEmpty || _selectedMeals.isNotEmpty)
                   Expanded(
-                    child: selectedFoods.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            itemCount: selectedFoods.length,
-                            itemBuilder: (context, index) {
-                              return _buildSelectedFoodTile(selectedFoods[index], index);
-                            },
+                    child: ListView.builder(
+                      itemCount: _loggedMeals.length + _selectedMeals.length,
+                      itemBuilder: (context, index) {
+                        final isLoggedMeal = index < _loggedMeals.length;
+                        final meal = isLoggedMeal
+                            ? _loggedMeals[index]
+                            : _selectedMeals[index - _loggedMeals.length];
+
+                        // Hide meals marked for deletion
+                        if (isLoggedMeal && meal['markedForDeletion'] == true) {
+                          return const SizedBox.shrink(); // Hide the meal
+                        }
+
+                        return ListTile(
+                          title: Text(meal['title'] ?? meal['name']),
+                          subtitle: Text(
+                            'Calories: ${isLoggedMeal ? meal['calories'] : _getCalories(meal)} kcal | '
+                            'Carbs: ${isLoggedMeal ? meal['carbs'] : _getNutrientValue(meal, 'Carbohydrates').toStringAsFixed(2)}g | '
+                            'Protein: ${isLoggedMeal ? meal['protein'] : _getNutrientValue(meal, 'Protein').toStringAsFixed(2)}g | '
+                            'Fats: ${isLoggedMeal ? meal['fats'] : _getNutrientValue(meal, 'Fat').toStringAsFixed(2)}g',
                           ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Search Results",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 5),
-                  Expanded(
-                    child: displayedFoods.isEmpty
-                        ? const Center(child: Text("No food found!", style: TextStyle(color: Colors.grey)))
-                        : ListView.builder(
-                            itemCount: displayedFoods.length,
-                            itemBuilder: (context, index) {
-                              return _buildSearchResultTile(displayedFoods[index]);
-                            },
+                          trailing: IconButton(
+                            icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                            onPressed: () => _removeMeal(index, isLoggedMeal),
                           ),
+                        );
+                      },
+                    ),
                   ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SizedBox(
-          width: double.infinity,
-          height: 55,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context, selectedFoods);
-            },
-            child: const Text(
-              "Done",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ],
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.search, color: Colors.black54),
-          const SizedBox(width: 10),
+          // Search Bar and Results Section
           Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: "Search food or recipes",
-                border: InputBorder.none,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search Bar
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search for meals...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onChanged: _searchMeals,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Search Results
+                  if (_searchResults.isNotEmpty)
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _searchResults.length,
+                        itemBuilder: (context, index) {
+                          final meal = _searchResults[index];
+                          return ListTile(
+                            title: Text(meal['title']),
+                            subtitle: Text(
+                              'Calories: ${_getCalories(meal)} kcal | '
+                              'Carbs: ${_getNutrientValue(meal, 'Carbohydrates')}g | '
+                              'Protein: ${_getNutrientValue(meal, 'Protein')}g | '
+                              'Fats: ${_getNutrientValue(meal, 'Fat')}g',
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () => _addMeal(meal),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSelectedFoodTile(Map<String, dynamic> food, int index) {
-    return ListTile(
-      title: Text(food["name"] ?? "No Name"),
-      subtitle: Text(
-          "${food["calories"] ?? "N/A"} kcal | ${food["carbs"] ?? "N/A"}g carbs | ${food["protein"] ?? "N/A"}g protein | ${food["fat"] ?? "N/A"}g fat"),
-      trailing: IconButton(
-        icon: const Icon(Icons.remove_circle, color: Colors.red),
-        onPressed: () => removeFood(index),
+      // Save Button at the bottom
+      bottomNavigationBar: Container(
+        color: Colors.green,
+        height: 60,
+        child: InkWell(
+          onTap: _saveMeals,
+          child: const Center(
+            child: Text(
+              "Save",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
       ),
-    );
-  }
-
-  Widget _buildSearchResultTile(Map<String, dynamic> food) {
-    return ListTile(
-      title: Text(food["name"] ?? "No Name"),
-      subtitle: Text(
-          "${food["calories"] ?? "N/A"} kcal | ${food["carbs"] ?? "N/A"}g carbs | ${food["protein"] ?? "N/A"}g protein | ${food["fat"] ?? "N/A"}g fat"),
-      trailing: IconButton(
-        icon: const Icon(Icons.add_circle, color: Colors.green),
-        onPressed: () => addFood(food),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return const Center(
-      child: Text("No foods selected yet.", style: TextStyle(color: Colors.grey)),
     );
   }
 }

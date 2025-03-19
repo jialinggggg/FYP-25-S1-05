@@ -26,33 +26,40 @@ class _HealthReportScreenState extends State<HealthReportScreen> {
   }
 
   Future<void> _fetchHealthData() async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) return;
+  try {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
 
-      final response = await _supabase
-          .from('user_measurements')
-          .select('weight, height, bmi, created_at')
-          .eq('uid', userId)
-          .order('created_at', ascending: false);
+    final response = await _supabase
+        .from('user_measurements')
+        .select('weight, height, bmi, created_at')
+        .eq('uid', userId)
+        .order('created_at', ascending: false);
 
-      _healthData = response.map((entry) {
-        return HealthData(
-          date: DateTime.parse(entry['created_at'] as String),
-          weight: (entry['weight'] as num).toDouble(),
-          height: (entry['height'] as num).toDouble(),
-          bmi: (entry['bmi'] as num).toDouble(),
-        );
-      }).toList();
+    _healthData = response.map((entry) {
+      // Parse the 'created_at' string into a DateTime object in UTC
+      final createdAtString = entry['created_at'] as String;
+      final createdAtUtc = DateTime.parse(createdAtString).toUtc();
 
-      setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching data: $e')),
+      // Convert the UTC DateTime to local time zone (SGT)
+      final createdAtLocal = createdAtUtc.toLocal();
+
+      return HealthData(
+        date: createdAtLocal, // Use the local DateTime
+        weight: (entry['weight'] as num).toDouble(),
+        height: (entry['height'] as num).toDouble(),
+        bmi: (entry['bmi'] as num).toDouble(),
       );
-    }
+    }).toList();
+
+    setState(() {});
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error fetching data: $e')),
+    );
   }
+}
 
   List<HealthData> get _filteredData {
     switch (_selectedFilter) {

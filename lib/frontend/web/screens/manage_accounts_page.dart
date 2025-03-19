@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'profile_page.dart'; // Unified Profile Page
-import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import 'profile_page.dart'; // Import the ProfilePage
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../backend/supabase/accounts_service.dart';
 import 'package:intl/intl.dart';
 
@@ -39,9 +39,6 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
       final userAccountsData = await _accountService.fetchAllUserAccounts();
       final businessAccountsData = await _accountService.fetchAllBusinessAccounts();
 
-      debugPrint('Fetched User Accounts: $userAccountsData'); // Debug log
-      debugPrint('Fetched Business Accounts: $businessAccountsData'); // Debu
-
       if (mounted) {
         setState(() {
           userAccounts = userAccountsData;
@@ -52,52 +49,6 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error fetching accounts: $e')),
-        );
-      }
-    }
-  }
-
-  /// **🔹 Updates the account data**
-  Future<void> _updateAccount(String uid, Map<String, String> updatedData, bool isUser) async {
-    try {
-      if (isUser) {
-        await _accountService.updateAccount(
-          uid: uid,
-          email: updatedData["email"]!,
-          type: updatedData["type"]!,
-          status: updatedData["status"]!,
-        );
-      } else {
-        await _accountService.updateAccount(
-          uid: uid,
-          email: updatedData["email"]!,
-          type: updatedData["type"]!,
-          status: updatedData["status"]!,
-        );
-      }
-      if (mounted) {
-        await _fetchAccounts(); // Refresh the data
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating account: $e')),
-        );
-      }
-    }
-  }
-
-  /// **🔹 Deletes an account from the list**
-  Future<void> _deleteAccount(String uid, bool isUser) async {
-    try {
-      await _accountService.deleteAccount(uid: uid);
-      if (mounted) {
-        await _fetchAccounts(); // Refresh the data
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting account: $e')),
         );
       }
     }
@@ -120,18 +71,18 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ///Tabs for Users & Business Partners
+            /// Tabs for Users & Business Partners
             TabBar(
               controller: _tabController,
               labelColor: Colors.green[800],
               unselectedLabelColor: Colors.black,
               indicatorColor: Colors.green[800],
               labelStyle: const TextStyle(
-                fontSize: 18,  // ✅ Set active tab font size
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
               unselectedLabelStyle: const TextStyle(
-                fontSize: 16,  // ✅ Set inactive tab font size
+                fontSize: 16,
               ),
               tabs: const [
                 Tab(text: "Users"),
@@ -140,7 +91,7 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
             ),
             const SizedBox(height: 10),
 
-            ///Search Bar
+            /// Search Bar
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -156,7 +107,7 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
             ),
             const SizedBox(height: 10),
 
-            ///Tabs Content
+            /// Tabs Content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -172,156 +123,136 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
     );
   }
 
-  ///Builds Accounts Table for Users & Business Partners
-Widget _buildAccountsTable(List<Map<String, dynamic>> accounts, bool isUser) {
-  final filteredAccounts = accounts.where((account) {
-    return account["name"]?.toLowerCase().contains(searchQuery) ?? false ||
-        account["email"]?.toLowerCase().contains(searchQuery) ?? false ||
-        account["status"]?.toLowerCase().contains(searchQuery) ?? false;
-  }).toList();
+  /// Builds Accounts Table for Users & Business Partners
+  Widget _buildAccountsTable(List<Map<String, dynamic>> accounts, bool isUser) {
+    final filteredAccounts = accounts.where((account) {
+      return account["name"]?.toLowerCase().contains(searchQuery) ?? false ||
+          account["email"]?.toLowerCase().contains(searchQuery) ?? false ||
+          account["status"]?.toLowerCase().contains(searchQuery) ?? false;
+    }).toList();
 
-  return filteredAccounts.isEmpty
-      ? Center(
-          child: Text(
-            "No accounts found",
-            style: TextStyle(fontSize: 16, color: Colors.black54),
-          ),
-        )
-      : SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: isUser
-                ? const [
-                    DataColumn(label: Text("No.")),
-                    DataColumn(label: Text("Name")),
-                    DataColumn(label: Text("Email")),
-                    DataColumn(label: Text("Status")),
-                    DataColumn(label: Text("Country")),
-                    DataColumn(label: Text("Birth Date")),
-                    DataColumn(label: Text("Gender")),
-                    DataColumn(label: Text("Created At")),
-                    DataColumn(label: Text("Actions")),
-                  ]
-                : const [
-                    DataColumn(label: Text("No.")),
-                    DataColumn(label: Text("Business Name")),
-                    DataColumn(label: Text("Email")),
-                    DataColumn(label: Text("Status")),
-                    DataColumn(label: Text("Registration No.")),
-                    DataColumn(label: Text("Type")),
-                    DataColumn(label: Text("Country")),
-                    DataColumn(label: Text("Created At")),
-                    DataColumn(label: Text("Actions")),
-                  ],
-            rows: List<DataRow>.generate(
-              filteredAccounts.length,
-              (index) {
-                final account = filteredAccounts[index];
-                final businessProfile = account["business_profiles"] as Map<String, dynamic>?;
-                final userProfile = account["user_profiles"] as Map<String, dynamic>?;
-
-                return DataRow(
-                  cells: isUser
-                      ? [
-                          DataCell(Text((index + 1).toString())),
-                          DataCell(Text(userProfile?["name"] ?? "N/A")),
-                          DataCell(Text(account["email"] ?? "N/A")),
-                          DataCell(
-                            Text(
-                              account["status"] ?? "N/A",
-                              style: TextStyle(
-                                color: account["status"] == "active" ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          DataCell(Text(userProfile?["country"] ?? "N/A")),
-                          DataCell(
-                            Text(
-                              userProfile?["birth_date"] != null
-                                  ? DateFormat('yyyy-MM-dd').format(
-                                      DateTime.parse(userProfile!["birth_date"].toString()),
-                                  )
-                                  : "N/A",
-                            ),
-                          ),
-                          DataCell(Text(userProfile?["gender"] ?? "N/A")),
-                          DataCell(Text(account["created_at"] ?? "N/A")),
-                          DataCell(
-                            IconButton(
-                              icon: const Icon(Icons.arrow_forward, color: Colors.green),
-                              onPressed: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProfilePage(
-                                      account: account,
-                                      onUpdate: _updateAccount,
-                                      onDelete: _deleteAccount,
-                                      isBusiness: !isUser,
-                                    ),
-                                  ),
-                                );
-
-                                if (result != null && mounted) {
-                                  if (result["deleted"] == true) {
-                                    await _deleteAccount(result["uid"], isUser);
-                                  } else {
-                                    await _updateAccount(result["uid"], result["updatedData"], isUser);
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                        ]
-                      : [
-                          DataCell(Text((index + 1).toString())),
-                          DataCell(Text(businessProfile?["name"] ?? "N/A")),
-                          DataCell(Text(account["email"] ?? "N/A")),
-                          DataCell(
-                            Text(
-                              account["status"] ?? "N/A",
-                              style: TextStyle(
-                                color: account["status"] == "active" ? Colors.green : const Color.fromARGB(255, 244, 219, 54),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          DataCell(Text(businessProfile?["registration_no"] ?? "N/A")),
-                          DataCell(Text(businessProfile?["type"] ?? "N/A")),
-                          DataCell(Text(businessProfile?["country"] ?? "N/A")),
-                          DataCell(Text(account["created_at"] ?? "N/A")),
-                          DataCell(
-                            IconButton(
-                              icon: const Icon(Icons.arrow_forward, color: Colors.green),
-                              onPressed: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProfilePage(
-                                      account: account,
-                                      onUpdate: _updateAccount,
-                                      onDelete: _deleteAccount,
-                                      isBusiness: !isUser,
-                                    ),
-                                  ),
-                                );
-
-                                if (result != null && mounted) {
-                                  if (result["deleted"] == true) {
-                                    await _deleteAccount(result["uid"], isUser);
-                                  } else {
-                                    await _updateAccount(result["uid"], result["updatedData"], isUser);
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                );
-              },
+    return filteredAccounts.isEmpty
+        ? Center(
+            child: Text(
+              "No accounts found",
+              style: TextStyle(fontSize: 16, color: Colors.black54),
             ),
-          ),
-        );
-}
+          )
+        : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: isUser
+                  ? const [
+                      DataColumn(label: Text("No.")),
+                      DataColumn(label: Text("Name")),
+                      DataColumn(label: Text("Email")),
+                      DataColumn(label: Text("Status")),
+                      DataColumn(label: Text("Country")),
+                      DataColumn(label: Text("Birth Date")),
+                      DataColumn(label: Text("Gender")),
+                      DataColumn(label: Text("Created At")),
+                      DataColumn(label: Text("Actions")),
+                    ]
+                  : const [
+                      DataColumn(label: Text("No.")),
+                      DataColumn(label: Text("Business Name")),
+                      DataColumn(label: Text("Email")),
+                      DataColumn(label: Text("Status")),
+                      DataColumn(label: Text("Registration No.")),
+                      DataColumn(label: Text("Type")),
+                      DataColumn(label: Text("Country")),
+                      DataColumn(label: Text("Created At")),
+                      DataColumn(label: Text("Actions")),
+                    ],
+              rows: List<DataRow>.generate(
+                filteredAccounts.length,
+                (index) {
+                  final account = filteredAccounts[index];
+                  final businessProfile = account["business_profiles"] as Map<String, dynamic>?;
+                  final userProfile = account["user_profiles"] as Map<String, dynamic>?;
+
+                  return DataRow(
+                    cells: isUser
+                        ? [
+                            DataCell(Text((index + 1).toString())),
+                            DataCell(Text(userProfile?["name"] ?? "N/A")),
+                            DataCell(Text(account["email"] ?? "N/A")),
+                            DataCell(
+                              Text(
+                                account["status"] ?? "N/A",
+                                style: TextStyle(
+                                  color: account["status"] == "active" ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(userProfile?["country"] ?? "N/A")),
+                            DataCell(
+                              Text(
+                                userProfile?["birth_date"] != null
+                                    ? DateFormat('yyyy-MM-dd').format(
+                                        DateTime.parse(userProfile!["birth_date"].toString()),
+                                    )
+                                    : "N/A",
+                              ),
+                            ),
+                            DataCell(Text(userProfile?["gender"] ?? "N/A")),
+                            DataCell(Text(account["created_at"] ?? "N/A")),
+                            DataCell(
+                              IconButton(
+                                icon: const Icon(Icons.arrow_forward, color: Colors.green),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfilePage(
+                                        uid: account["uid"], // Pass the UID
+                                        isBusiness: !isUser, // Pass the account type flag
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ]
+                        : [
+                            DataCell(Text((index + 1).toString())),
+                            DataCell(Text(businessProfile?["name"] ?? "N/A")),
+                            DataCell(Text(account["email"] ?? "N/A")),
+                            DataCell(
+                              Text(
+                                account["status"] ?? "N/A",
+                                style: TextStyle(
+                                  color: account["status"] == "active" ? Colors.green : const Color.fromARGB(255, 244, 219, 54),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            DataCell(Text(businessProfile?["registration_no"] ?? "N/A")),
+                            DataCell(Text(businessProfile?["type"] ?? "N/A")),
+                            DataCell(Text(businessProfile?["country"] ?? "N/A")),
+                            DataCell(Text(account["created_at"] ?? "N/A")),
+                            DataCell(
+                              IconButton(
+                                icon: const Icon(Icons.arrow_forward, color: Colors.green),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfilePage(
+                                        uid: account["uid"], // Pass the UID
+                                        isBusiness: !isUser, // Pass the account type flag
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                  );
+                },
+              ),
+            ),
+          );
+  }
 }

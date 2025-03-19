@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -9,6 +7,10 @@ import 'dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'recipes_screen.dart';
 import 'orders_screen.dart';
+import '../../../backend/supabase/user_goals_service.dart';
+import '../../../backend/supabase/meal_entries_service.dart';
+import '../../../backend/supabase/user_measurements_service.dart';
+import '../../../backend/supabase/user_profiles_service.dart';
 
 class MainLogScreen extends StatefulWidget {
   const MainLogScreen({super.key});
@@ -17,37 +19,52 @@ class MainLogScreen extends StatefulWidget {
   MainLogScreenState createState() => MainLogScreenState();
 }
 
-/// Placeholder Screens for Missing Pages
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          "$title Page Coming Soon...",
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
-}
-
 class MainLogScreenState extends State<MainLogScreen> {
-  /// Navigation Index
-  int _selectedIndex = 2; // MainLog is the current page
-
-  final int totalDailyGoal = 2000;
+  int _selectedIndex = 2;
   final TextEditingController _weightController = TextEditingController();
-  int remainingCalories = 2000;
+  int remainingCalories = 0;
   int totalCaloriesEaten = 0;
   double totalCarbs = 0;
   double totalProtein = 0;
   double totalFat = 0;
   double? userWeight;
+  int totalDailyGoal = 0;
+  double height = 0;
+  bool _hasLoggedWeightToday = false;
+  bool _isEditingWeight = false;
+  String? _measurementId;
+
+  // Declare services as late
+  late final UserGoalsService _userGoalsService;
+  late final MealEntriesService _mealEntriesService;
+  late final UserProfilesService _userProfilesService;
+  late final UserMeasurementService _userMeasurementService;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize services
+    _userGoalsService = UserGoalsService(Supabase.instance.client);
+    _mealEntriesService = MealEntriesService(Supabase.instance.client);
+    _userProfilesService = UserProfilesService(Supabase.instance.client);
+    _userMeasurementService = UserMeasurementService(
+      Supabase.instance.client,
+      _userProfilesService,
+    );
+
+    // Fetch data
+    _fetchDailyCalories();
+    _fetchDailyTotals();
+    _checkIfWeightLoggedToday();
+  }
+
+  Map<String, int> mealCalories = {
+    "Breakfast": 0,
+    "Lunch": 0,
+    "Dinner": 0,
+    "Snacks": 0,
+  };
 
   /// Navigation Logic
   void _onItemTapped(int index) {
@@ -59,13 +76,13 @@ class MainLogScreenState extends State<MainLogScreen> {
       case 0: // Orders
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const OrdersScreen())
+          MaterialPageRoute(builder: (context) => const OrdersScreen()),
         );
         break;
       case 1: // Recipes
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RecipesScreen())
+          MaterialPageRoute(builder: (context) => const RecipesScreen()),
         );
         break;
       case 2: // Log (stay here)
@@ -73,299 +90,153 @@ class MainLogScreenState extends State<MainLogScreen> {
       case 3: // Dashboard
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainReportDashboard())
+          MaterialPageRoute(builder: (context) => const MainReportDashboard()),
         );
         break;
       case 4: // Profile
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen())
+          MaterialPageRoute(builder: (context) => const ProfileScreen()),
         );
         break;
     }
   }
 
-
-  Map<String, int> mealCalories = {
-    "Breakfast": 0,
-    "Lunch": 0,
-    "Dinner": 0,
-    "Snacks": 0,
-  };
-
-  Map<String, List<Map<String, dynamic>>> loggedMeals = {
-    "Breakfast": [],
-    "Lunch": [],
-    "Dinner": [],
-    "Snacks": [],
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchLoggedMeals();
-    // Initialize the weight controller with current weight or default to "0"
-    _weightController.text = userWeight?.toStringAsFixed(0) ?? '0';
-  }
-
-  @override
-  void dispose() {
-    _weightController.dispose();
-    super.dispose();
-  }
-
-  /// Function to Fetch Data from Supabase
-  Future<void> _fetchLoggedMeals() async {
+  Future<void> _fetchDailyCalories() async {
     try {
-      // Fetch from meal_entries table.
-      final data = await Supabase.instance.client
-          .from('meal_entries')
-          .select(); // selects all columns by default
-      if ((data as List).isEmpty) {
-        print('No data found.');
-      } else {
-        print('Fetched meals: $data');
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final goals = await _userGoalsService.fetchGoals(userId);
+      if (goals != null) {
         setState(() {
-          for (var food in data as List<dynamic>) {
-            String mealType = food['type'];
-            if (loggedMeals.containsKey(mealType)) {
-              loggedMeals[mealType]!.add(food);
-            }
-          }
+          totalDailyGoal = goals['daily_calories'];
+          remainingCalories = totalDailyGoal;
         });
       }
     } catch (e) {
-      print('Error fetching meals: $e');
-    }
-  }
-
-  /// Add Food Function with Supabase
-  void _addFood(String mealType) async {
-  final List<Map<String, dynamic>>? selectedFoods = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => AddFoodScreen(
-        mealType: mealType,
-        existingFoods: List.from(loggedMeals[mealType]!),
-      ),
-    ),
-  );
-
-  if (selectedFoods != null && selectedFoods.isNotEmpty) {
-    for (var food in selectedFoods) {
-      // Safely parse values; if null or unparsable, default to 0 or 0.0.
-      int foodCalories = int.tryParse(
-              food["calories"]?.toString().split(" ")[0] ?? "") ??
-          0;
-      double foodCarbs = double.tryParse(
-              food["carbs"]?.toString().split(" ")[0] ?? "") ??
-          0.0;
-      double foodProtein = double.tryParse(
-              food["protein"]?.toString().split(" ")[0] ?? "") ??
-          0.0;
-      double foodFat = double.tryParse(
-              food["fats"]?.toString().split(" ")[0] ?? "") ??
-          0.0;
-
-      // Check if the food already exists locally using the meal_name key.
-      if (!loggedMeals[mealType]!
-          .any((f) => f["name"] == food["name"])) {
-        // First update local state.
-        setState(() {
-          loggedMeals[mealType]!.add(food);
-          mealCalories[mealType] =
-              (mealCalories[mealType] ?? 0) + foodCalories;
-          totalCaloriesEaten += foodCalories;
-          remainingCalories = (totalDailyGoal - totalCaloriesEaten)
-              .clamp(0, totalDailyGoal);
-          totalCarbs += foodCarbs;
-          totalProtein += foodProtein;
-          totalFat += foodFat;
-        });
-
-        // Ensure that the user is authenticated.
-        String? userId = Supabase.instance.client.auth.currentUser?.id;
-        if (userId == null) {
-          print('User is not authenticated. Please sign in.');
-          // Optionally, navigate to the login screen or show a dialog.
-          return;
-        }
-
-        // Insert into the meal_entries table.
-        try {
-          final inserted = await Supabase.instance.client
-              .from('meal_entries')
-              .insert({
-            'uid': userId,
-            'name': food['name'] ?? '',
-            'calories': foodCalories,
-            'carbs': foodCarbs,
-            'protein': foodProtein,
-            'fats': foodFat,
-            'type': mealType,
-          }).select();
-
-          print('Food added to Supabase: $inserted');
-
-          // Update the last inserted food with its primary key (meal_id) from Supabase.
-          if (inserted.isNotEmpty) {
-            setState(() {
-              loggedMeals[mealType]!.last['meal_id'] =
-                  inserted.first['meal_id'];
-            });
-          }
-        } catch (e) {
-          print('Error adding food: $e');
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching daily calories: $e')),
+        );
       }
     }
   }
-}
 
-
-  /// Remove Food Function
-  Future<void> _removeFood(String mealType, int index) async {
-    // Get the food to remove.
-    final food = loggedMeals[mealType]![index];
-    // Use the primary key from your table.
-    final foodId = food['meal_id'];
-
-    if (foodId == null) {
-      print('Food id is null, cannot delete.');
-      return;
-    }
-
-    // Safely parse the nutrition info to update local totals.
-    int foodCalories = int.tryParse(
-            food["calories"]?.toString().split(" ")[0] ?? "") ??
-        0;
-    double foodCarbs = double.tryParse(
-            food["carbs"]?.toString().split(" ")[0] ?? "") ??
-        0.0;
-    double foodProtein = double.tryParse(
-            food["protein"]?.toString().split(" ")[0] ?? "") ??
-        0.0;
-    double foodFat = double.tryParse(
-            food["fats"]?.toString().split(" ")[0] ?? "") ??
-        0.0;
-
-    // First update the local state.
-    setState(() {
-      totalCaloriesEaten =
-          (totalCaloriesEaten - foodCalories).clamp(0, totalDailyGoal);
-      remainingCalories =
-          (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
-      totalCarbs = (totalCarbs - foodCarbs).clamp(0.0, double.infinity);
-      totalProtein = (totalProtein - foodProtein).clamp(0.0, double.infinity);
-      totalFat = (totalFat - foodFat).clamp(0.0, double.infinity);
-
-      mealCalories[mealType] = (mealCalories[mealType]! - foodCalories)
-          .clamp(0, double.infinity)
-          .toInt();
-
-      // Remove the item from the local list.
-      loggedMeals[mealType]?.removeAt(index);
-    });
-
-    // Delete from the correct table: meal_entries.
+  /// Fetch daily totals and update UI
+  Future<void> _fetchDailyTotals() async {
     try {
-      final response = await Supabase.instance.client
-          .from('meal_entries')
-          .delete()
-          .eq('meal_id', foodId);
-      print('Food deleted from Supabase: $response');
-    } catch (error) {
-      print('Error deleting food from Supabase: $error');
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final dailyTotals = await _mealEntriesService.calculateDailyTotals(userId, DateTime.now());
+      final mealTypeCalories = await _mealEntriesService.calculateCaloriesByMealType(userId, DateTime.now());
+
+      setState(() {
+        totalCaloriesEaten = dailyTotals['totalCalories'] as int;
+        totalCarbs = double.parse((dailyTotals['totalCarbs'] as double).toStringAsFixed(2));
+        totalProtein = double.parse((dailyTotals['totalProtein'] as double).toStringAsFixed(2));
+        totalFat = double.parse((dailyTotals['totalFats'] as double).toStringAsFixed(2));
+        remainingCalories = (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
+
+        mealCalories = mealTypeCalories;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error fetching daily totals: $e')),
+        );
+      }
     }
   }
 
-  /// Builds the Daily Weight Widget with text input and increment/decrement buttons
-  Widget _buildDailyWeightWidget() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Text(
-            "Log Your Weight",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
-                    currentWeight = (currentWeight - 1).clamp(0, double.infinity);
-                    userWeight = currentWeight;
-                    _weightController.text = currentWeight.toStringAsFixed(0);
-                  });
-                },
-              ),
-              SizedBox(
-                width: 100, // Fixed width to help center the input field
-                child: TextField(
-                  controller: _weightController,
-                  textAlign: TextAlign.center, // Center the text inside the field
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Weight (kg)",
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) {
-                    double? newWeight = double.tryParse(value);
-                    if (newWeight != null) {
-                      setState(() {
-                        userWeight = newWeight;
-                      });
-                    }
-                  },
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-                onPressed: () {
-                  setState(() {
-                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
-                    currentWeight += 1;
-                    userWeight = currentWeight;
-                    _weightController.text = currentWeight.toStringAsFixed(0);
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton(
-            onPressed: () {
-              double? submittedWeight = double.tryParse(_weightController.text);
-              if (submittedWeight != null) {
-                setState(() {
-                  userWeight = submittedWeight;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Weight logged: ${submittedWeight.toStringAsFixed(0)} kg"),
-                  ),
-                );
-              }
-            },
-            child: const Text("Submit Weight"),
-          ),
-        ],
-      ),
-    );
+  /// Check if the user has logged their weight today
+  Future<void> _checkIfWeightLoggedToday() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final today = DateTime.now();
+      final startOfDay = DateTime(today.year, today.month, today.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
+
+      final response = await Supabase.instance.client
+          .from('user_measurements')
+          .select()
+          .eq('uid', userId)
+          .gte('created_at', startOfDay.toIso8601String())
+          .lte('created_at', endOfDay.toIso8601String());
+
+      if (response.isNotEmpty) {
+        setState(() {
+          _hasLoggedWeightToday = true;
+          _measurementId = response.first['measurement_id'].toString();
+          _weightController.text = response.first['weight'].toStringAsFixed(0);
+        });
+      } else {
+        final latestMeasurement = await _userMeasurementService.fetchLatestMeasurement(userId);
+        if (latestMeasurement != null) {
+          setState(() {
+            _weightController.text = latestMeasurement['weight'].toStringAsFixed(0);
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error checking weight log: $e')),
+        );
+      }
+    }
+  }
+
+  /// Submit or update weight
+  Future<void> _submitOrUpdateWeight() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final weight = double.tryParse(_weightController.text);
+      if (weight == null || weight <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid weight.')),
+        );
+        return;
+      }
+
+      if (_hasLoggedWeightToday) {
+        // Update existing measurement
+        await _userMeasurementService.updateMeasurement(
+          measurementId: _measurementId!,
+          weight: weight,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Weight updated successfully!')),
+          );
+        }
+      } else {
+        // Insert new measurement
+        await _userMeasurementService.insertMeasurement(
+          uid: userId,
+          weight: weight,
+        );
+        setState(() {
+          _hasLoggedWeightToday = true;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Weight logged successfully!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error logging weight: $e')),
+        );
+      }
+    }
   }
 
   /// Builds the Summary Card Widget
@@ -384,8 +255,7 @@ class MainLogScreenState extends State<MainLogScreen> {
             style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black54
-            ),
+                color: Colors.black54),
           ),
           const SizedBox(height: 10),
 
@@ -420,9 +290,10 @@ class MainLogScreenState extends State<MainLogScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              _buildMacroIndicator(totalCaloriesEaten.toDouble(), "Calories", Colors.yellow[800]!),
               _buildMacroIndicator(totalCarbs, "Carbs", Colors.amber[800]!),
               _buildMacroIndicator(totalProtein, "Protein", Colors.purple[800]!),
-              _buildMacroIndicator(totalFat, "Fat", Colors.lightBlue[800]!),
+              _buildMacroIndicator(totalFat, "Fats", Colors.lightBlue[800]!),
             ],
           ),
         ],
@@ -442,6 +313,97 @@ class MainLogScreenState extends State<MainLogScreen> {
         Text(label,
             style: const TextStyle(color: Colors.grey, fontSize: 14)),
       ],
+    );
+  }
+
+  /// Builds the Daily Weight Widget with text input and increment/decrement buttons
+  Widget _buildDailyWeightWidget() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _hasLoggedWeightToday && !_isEditingWeight ? Colors.grey[300] : Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            "Log Your Weight",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                onPressed: _hasLoggedWeightToday && !_isEditingWeight ? null : () {
+                  setState(() {
+                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
+                    currentWeight = (currentWeight - 1).clamp(0, double.infinity);
+                    _weightController.text = currentWeight.toStringAsFixed(0);
+                  });
+                },
+              ),
+              SizedBox(
+                width: 100, // Fixed width to help center the input field
+                child: TextField(
+                  controller: _weightController,
+                  textAlign: TextAlign.center, // Center the text inside the field
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: "Weight (kg)",
+                    border: OutlineInputBorder(),
+                  ),
+                  enabled: !_hasLoggedWeightToday || _isEditingWeight,
+                  onChanged: (value) {
+                    double? newWeight = double.tryParse(value);
+                    if (newWeight != null) {
+                      setState(() {
+                        userWeight = newWeight;
+                      });
+                    }
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, color: Colors.green),
+                onPressed: _hasLoggedWeightToday && !_isEditingWeight ? null : () {
+                  setState(() {
+                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
+                    currentWeight += 1;
+                    _weightController.text = currentWeight.toStringAsFixed(0);
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_hasLoggedWeightToday && !_isEditingWeight)
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isEditingWeight = true;
+                });
+              },
+              child: const Text("Edit Weight"),
+            ),
+          if (!_hasLoggedWeightToday || _isEditingWeight)
+            ElevatedButton(
+              onPressed: () async {
+                await _submitOrUpdateWeight();
+                setState(() {
+                  _isEditingWeight = false;
+                });
+              },
+              child: Text(_hasLoggedWeightToday ? "Update Weight" : "Submit Weight"),
+            ),
+        ],
+      ),
     );
   }
 
@@ -518,55 +480,34 @@ class MainLogScreenState extends State<MainLogScreen> {
     );
   }
 
-  /// Meal Tile Widget.
   Widget _buildMealTile(String mealType, int kcal, String iconPath) {
     return Card(
-      child: ExpansionTile(
+      child: ListTile(
         leading: CircleAvatar(
           backgroundImage: AssetImage(iconPath),
           backgroundColor: Colors.grey,
         ),
-        title: Text(mealType,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(mealType, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text("$kcal kcal"),
         trailing: IconButton(
           icon: const Icon(Icons.add_circle_outline),
-          onPressed: () => _addFood(mealType),
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddFoodScreen(
+                  mealType: mealType,
+                ),
+              ),
+            );
+
+            // Refresh data when returning from AddFoodScreen
+            if (result == true) {
+              _fetchDailyTotals();
+            }
+          },
         ),
-        children: _buildMealList(mealType),
       ),
     );
-  }
-
-  /// Meal List Widget.
-  List<Widget> _buildMealList(String mealType) {
-    if (loggedMeals[mealType] == null || loggedMeals[mealType]!.isEmpty) {
-      return const [
-        Padding(
-          padding: EdgeInsets.all(8.0),
-          child: Text(
-            "No food logged yet.",
-            style: TextStyle(color: Colors.grey),
-          ),
-        ),
-      ];
-    }
-    return loggedMeals[mealType]!.asMap().entries.map((entry) {
-      int index = entry.key;
-      Map<String, dynamic> food = entry.value;
-      return ListTile(
-        title: Text(
-          food["name"] ?? '',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          "${food["calories"] ?? 0} - ${food["carbs"] ?? 0} Carbs, ${food["protein"] ?? 0} Protein, ${food["fats"] ?? 0} Fat",
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-          onPressed: () => _removeFood(mealType, index),
-        ),
-      );
-    }).toList();
   }
 }

@@ -55,7 +55,6 @@ class SignUpDetailState extends State<SignUpDetail> {
 
   bool _emailError = false; // Track if email field has an error
   bool _passwordError = false; // Track if password field has an error
-  bool _emailExistsError = false; // Track if email exists error
 
   // Password validation rules
   bool _hasMinLength = false;
@@ -162,7 +161,6 @@ class SignUpDetailState extends State<SignUpDetail> {
     setState(() {
       _emailError = false;
       _passwordError = false;
-      _emailExistsError = false;
     });
 
     final email = _emailController.text.trim();
@@ -195,16 +193,10 @@ class SignUpDetailState extends State<SignUpDetail> {
       final profileService = UserProfilesService(_supabase);
       final medicalService = UserMedicalService(_supabase);
       final goalsService = UserGoalsService(_supabase);
-      final measurementService = UserMeasurementService(_supabase);
+      final measurementService = UserMeasurementService(_supabase, profileService);
 
       // Check if email already exists
-      final emailExists = await authService.checkEmailExists(email);
-      if (emailExists) {
-        setState(() {
-          _emailExistsError = true;
-        });
-        return;
-      }
+      await authService.checkEmailExists(email);
 
       // Step 1: Sign up the user using AuthUsersService
       final uid = await authService.signUp(email: email, password: password);
@@ -249,8 +241,6 @@ class SignUpDetailState extends State<SignUpDetail> {
       await measurementService.insertMeasurement(
         uid: uid,
         weight: widget.weight,
-        height: widget.height,
-        bmi: widget.weight / ((widget.height / 100) * (widget.height / 100)), // Calculate BMI
       );
 
       // Navigate to the success page
@@ -343,14 +333,11 @@ class SignUpDetailState extends State<SignUpDetail> {
               onChanged: (value) {
                 setState(() {
                   _emailError = false;
-                  _emailExistsError = false;
                 });
               },
             ),
             if (_emailError) // Show error message if email is invalid
               WidgetUtils.buildErrorMessage("Please enter a valid email address"),
-            if (_emailExistsError) // Show error message if email already exists
-              WidgetUtils.buildErrorMessage("This email is already registered"),
             const SizedBox(height: 25),
 
             // Password label

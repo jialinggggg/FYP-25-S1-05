@@ -7,6 +7,7 @@ import 'main_log_screen.dart';
 import 'body_stat.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../../backend/supabase/meal_entries_service.dart'; // Import the MealEntriesService
 
 class MainReportDashboard extends StatefulWidget {
   const MainReportDashboard({super.key});
@@ -17,6 +18,7 @@ class MainReportDashboard extends StatefulWidget {
 
 class _MainReportDashboardState extends State<MainReportDashboard> {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final MealEntriesService _mealEntriesService = MealEntriesService(Supabase.instance.client); // Initialize MealEntriesService
   DateTime? _latestNutritionDate;
   int? _latestCalories;
   DateTime? _latestBodyStatDate;
@@ -34,40 +36,20 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      // Fetch the latest date with meal entries
-      final latestDateResponse = await _supabase
-          .from('meal_entries')
-          .select('created_at')
-          .eq('uid', userId)
-          .order('created_at', ascending: false)
-          .limit(1);
+      // Fetch the latest date with meal entries using MealEntriesService
+      final latestDateResponse = await _mealEntriesService.fetchLatestDate(userId);
 
       if (latestDateResponse.isEmpty) return;
 
-      final latestDate = DateTime.parse(latestDateResponse[0]['created_at'] as String);
-      final startOfDay = DateTime(latestDate.year, latestDate.month, latestDate.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final latestDate = latestDateResponse[0]['created_at'] as DateTime; // No need to parse, it's already a DateTime
 
-      // Fetch all meal entries for the latest day
-      final response = await _supabase
-          .from('meal_entries')
-          .select('calories, created_at')
-          .eq('uid', userId)
-          .gte('created_at', startOfDay.toIso8601String())
-          .lt('created_at', endOfDay.toIso8601String());
+      // Calculate daily totals for the latest date using MealEntriesService
+      final dailyTotals = await _mealEntriesService.calculateDailyTotals(userId, latestDate);
 
-      if (response.isNotEmpty) {
-        // Calculate total calories for the day
-        int totalCalories = 0;
-        for (var entry in response) {
-          totalCalories += (entry['calories'] as num).toInt();
-        }
-
-        setState(() {
-          _latestCalories = totalCalories;
-          _latestNutritionDate = latestDate;
-        });
-      }
+      setState(() {
+        _latestCalories = dailyTotals['totalCalories'] as int?;
+        _latestNutritionDate = latestDate;
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,9 +71,16 @@ class _MainReportDashboardState extends State<MainReportDashboard> {
           .limit(1);
 
       if (response.isNotEmpty) {
+        // Parse the 'created_at' string into a DateTime object in UTC
+        final createdAtString = response[0]['created_at'] as String;
+        final createdAtUtc = DateTime.parse(createdAtString).toUtc();
+
+        // Convert the UTC DateTime to local time zone (SGT)
+        final createdAtLocal = createdAtUtc.toLocal();
+
         setState(() {
           _latestBMI = (response[0]['bmi'] as num).toDouble();
-          _latestBodyStatDate = DateTime.parse(response[0]['created_at'] as String);
+          _latestBodyStatDate = createdAtLocal; // Use the local DateTime
         });
       }
     } catch (e) {
