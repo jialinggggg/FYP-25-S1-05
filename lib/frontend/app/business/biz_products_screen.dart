@@ -2,12 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'biz_partner_dashboard.dart';
 import 'biz_profile_screen.dart';
-// import 'biz_orders_screen.dart'; // Uncomment when BizOrdersScreen is ready
+import 'biz_orders_screen.dart';
 import 'add_product.dart';
 import 'biz_product_details.dart';
 
 class BizProductsScreen extends StatefulWidget {
   const BizProductsScreen({super.key});
+
+  static List<Map<String, dynamic>> staticProductList = [];
 
   @override
   BizProductsScreenState createState() => BizProductsScreenState();
@@ -37,13 +39,19 @@ class BizProductsScreenState extends State<BizProductsScreen> {
 
   List<Map<String, dynamic>> filteredProducts = [];
   final TextEditingController _searchController = TextEditingController();
-  int _selectedIndex = 1; // ✅ Default index for "Products" tab
+  int _selectedIndex = 1; //Default index for "Products" tab
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_filterProducts);
-    filteredProducts = List.from(products); // ✅ Initialize filtered list
+
+    //Load from staticProductList if not emptyfonDelete:
+    if (BizProductsScreen.staticProductList.isNotEmpty) {
+      products = List.from(BizProductsScreen.staticProductList);
+    }
+
+    filteredProducts = List.from(products); // Initialize filtered list
   }
 
   /// **🔎 Filter Products Based on Search Input**
@@ -66,12 +74,13 @@ class BizProductsScreenState extends State<BizProductsScreen> {
     if (newProduct != null) {
       setState(() {
         products.add(newProduct);
-        filteredProducts = List.from(products); // ✅ Update filtered list
+        filteredProducts = List.from(products); //Update filtered list
+        BizProductsScreen.staticProductList = List.from(products);
       });
     }
   }
 
-  /// **🔄 Bottom Navigation Logic**
+  /// ** Bottom Navigation Logic**
   void _onItemTapped(int index) {
     if (index != _selectedIndex) {
       setState(() {
@@ -88,7 +97,7 @@ class BizProductsScreenState extends State<BizProductsScreen> {
         case 1:
           break; // Stay on Products screen
         case 2:
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen())); // ✅ Uncomment when BizOrdersScreen is ready
+         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
           break;
         case 3:
           Navigator.pushReplacement(
@@ -115,18 +124,18 @@ class BizProductsScreenState extends State<BizProductsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle, color: Colors.green, size: 30),
-            onPressed: _navigateToAddProduct, // ✅ Navigate to Add Product
+            onPressed: _navigateToAddProduct, // Navigate to Add Product
           ),
         ],
       ),
 
-      /// **Body Content**
+      /// Body Content
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔍 **Search Bar**
+            /// Search Bar
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -139,7 +148,7 @@ class BizProductsScreenState extends State<BizProductsScreen> {
             ),
             const SizedBox(height: 10),
 
-            /// 📜 **My Products List**
+            /// **My Products List**
             const Text(
               "Your Added Products",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -165,9 +174,11 @@ class BizProductsScreenState extends State<BizProductsScreen> {
                       leading: SizedBox(
                         width: 50,
                         height: 50,
-                        child: product["image"] != null && File(product["image"]).existsSync()
+                        child: (product["image"] != null &&
+                            product["image"] != "assets/default_img.png" &&
+                            File(product["image"]).existsSync())
                             ? Image.file(File(product["image"]), fit: BoxFit.cover)
-                            : Image.asset("assets/default_image.png", fit: BoxFit.cover), // ✅ Default image
+                            : Image.asset("assets/default_img.png", fit: BoxFit.cover),
                       ),
                       title: Text(
                         product["name"],
@@ -201,6 +212,7 @@ class BizProductsScreenState extends State<BizProductsScreen> {
                                 setState(() {
                                   products.removeAt(index);
                                   filteredProducts = List.from(products);
+                                  BizProductsScreen.staticProductList = List.from(products); //update static list
                                 });
                               },
                             ),
@@ -216,7 +228,7 @@ class BizProductsScreenState extends State<BizProductsScreen> {
         ),
       ),
 
-      /// ✅ **Bottom Navigation Bar**
+      ///Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,

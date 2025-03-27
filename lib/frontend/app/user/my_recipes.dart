@@ -5,9 +5,11 @@ import 'recipes_screen.dart';
 import 'favourites_screen.dart';
 import 'profile_screen.dart';
 import 'dashboard_screen.dart';
+import 'add_recipe.dart';
 
 class MyRecipesScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> myRecipes; // ✅ Only User-Added Recipes
+  static List<Map<String, dynamic>> staticMyRecipes = [];
+  final List<Map<String, dynamic>> myRecipes; // Only User-Added Recipes
 
   const MyRecipesScreen({super.key, required this.myRecipes});
 
@@ -19,16 +21,20 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> filteredRecipes = [];
 
-  int _selectedTab = 2; // ✅ Default to "My Recipes"
-  int _selectedIndex = 1; // ✅ Default index for "Recipes" tab
+  int _selectedTab = 2; // Default to "My Recipes"
+  int _selectedIndex = 1; // Default index for "Recipes" tab
 
   @override
   void initState() {
     super.initState();
-    filteredRecipes = List.from(widget.myRecipes);
+    if (MyRecipesScreen.staticMyRecipes.isEmpty) {
+      MyRecipesScreen.staticMyRecipes = List.from(widget.myRecipes);
+    }
+    // Load from static list instead of widget.myRecipes
+    filteredRecipes = List.from(MyRecipesScreen.staticMyRecipes);
   }
 
-  /// 🔎 **Search Functionality**
+  /// **Search Functionality**
   void _filterRecipes(String query) {
     setState(() {
       if (query.isEmpty) {
@@ -148,7 +154,7 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
             ),
             const SizedBox(height: 10),
 
-            /// 🔘 **Three Buttons (Discover, Favourites, My Recipes)**
+            /// **Three Buttons (Discover, Favourites, My Recipes)**
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -162,14 +168,14 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
             ),
             const SizedBox(height: 10),
 
-            /// 📜 **My Recipes List**
+            /// **My Recipes List**
             const Text(
               "Your Added Recipes",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 
-            widget.myRecipes.isEmpty
+            MyRecipesScreen.staticMyRecipes.isEmpty
                 ? const Center(
               child: Text(
                 "No added recipes yet!",
@@ -206,7 +212,25 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
         ),
       ),
 
-      /// ✅ **Bottom Navigation Bar**
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.add),
+        onPressed: () async {
+          final newRecipe = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddRecipeScreen()),
+          );
+
+          if (newRecipe != null) {
+            setState(() {
+              MyRecipesScreen.staticMyRecipes.add(newRecipe);
+              filteredRecipes = List.from(MyRecipesScreen.staticMyRecipes);
+            });
+          }
+        },
+      ),
+
+      ///  **Bottom Navigation Bar**
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,

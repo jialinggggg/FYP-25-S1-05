@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../user/add_recipe.dart';
 import 'biz_profile_screen.dart';
 import 'biz_products_screen.dart';
+import 'biz_orders_screen.dart';
 
 
 class BizPartnerDashboard extends StatefulWidget {
@@ -44,7 +45,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
     if (newRecipe != null) {
       setState(() {
         recipes.add(newRecipe);
-        filteredRecipes = List.from(recipes); // ✅ Update filtered list
+        filteredRecipes = List.from(recipes); // Update filtered list
       });
     }
   }
@@ -66,7 +67,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
           );
           break;
         case 2:
-
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
           break;
         case 3:
           Navigator.pushReplacement(
@@ -93,18 +94,18 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle, color: Colors.green, size: 30),
-            onPressed: _navigateToAddRecipe, // ✅ Navigate to Add Recipe
+            onPressed: _navigateToAddRecipe, // Navigate to Add Recipe
           ),
         ],
       ),
 
-      /// 📜 **Search Bar & Recipe List**
+      /// **Search Bar & Recipe List**
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 🔍 **Search Bar**
+            /// **Search Bar**
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -117,7 +118,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
             ),
             const SizedBox(height: 10),
 
-            /// 📜 **My Recipes List**
+            /// **My Recipes List**
             const Text(
               "Your Added Recipes",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -167,7 +168,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
         ),
       ),
 
-      /// ✅ **Bottom Navigation Bar (Updated for Business Partner)**
+      /// Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,
