@@ -44,6 +44,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       _selectedIndex = index;
     });
 
+
     switch (index) {
       case 0: // Orders (stay here)
         break;
@@ -109,6 +110,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       MaterialPageRoute(builder: (context) => CartScreen(cart: Map.from(cart))),
     );
 
+
     if (updatedCart != null) {
       setState(() {
         cart = updatedCart;
@@ -117,20 +119,20 @@ class OrdersScreenState extends State<OrdersScreen> {
     }
   }
 
-
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> filteredProducts = [];
 
   @override
   void initState() {
     super.initState();
-    filteredProducts = List.from(products); // ✅ Initialize filtered list
-    _searchController.addListener(_onSearchChanged); // ✅ Listen for changes
+    filteredProducts = List.from(products); // Initialize filtered list
+    _searchController.addListener(_onSearchChanged); // Listen for changes
   }
 
   void _onSearchChanged() {
     setState(() {
       String query = _searchController.text.toLowerCase().trim();
+
 
       // ✅ Prevent errors if the search query is empty
       if (query.isEmpty) {
@@ -158,7 +160,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       ),
       body: Column(
         children: [
-          /// **Search Bar**
+          /// Search Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
@@ -173,6 +175,7 @@ class OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
           ),
+
 
           /// **Product List**
           Expanded(
@@ -215,7 +218,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       ),
 
 
-      /// **Bottom Navigation Bar (Matches Product Screen)**
+      ///Bottom Navigation Bar
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'checkout.dart';
 
 class CartScreen extends StatefulWidget {
   final Map<String, int> cart; // Cart items (Product name -> Quantity)
@@ -44,10 +45,25 @@ class CartScreenState extends State<CartScreen> {
   }
 
   /// **Proceed to Checkout**
-  void _checkout() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Checkout feature coming soon!")),
+  void _checkout() async {
+    if (widget.cart.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Your cart is empty!")),
+      );
+      return;
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutScreen(cart: widget.cart),
+      ),
     );
+
+    if (result == 'checkout_complete') {
+      // Clear cart and return to OrdersScreen
+      Navigator.pop(context, <String, int>{}); // Return empty cart
+    }
   }
 
   @override
