@@ -4,12 +4,14 @@ class RecipeDetailScreen extends StatelessWidget {
   final Map<String, dynamic> recipe;
   final Function(Map<String, dynamic>) onFavourite;
   final bool isFavourite;
+  final VoidCallback? onDelete;
 
   const RecipeDetailScreen({
     super.key,
     required this.recipe,
     required this.onFavourite,
     required this.isFavourite,
+    this.onDelete,
   });
 
   @override
@@ -54,7 +56,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
 
-                  /// 📌 **Calories, Time, Difficulty**
+                  ///  **Calories, Time, Difficulty**
                   Row(
                     children: [
                       _buildInfoCard(Icons.local_fire_department, "${recipe["calories"] ?? 0} kcal"),
@@ -67,7 +69,7 @@ class RecipeDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 15),
 
-                  /// 📌 **Description**
+                  ///  **Description**
                   Text(
                     recipe["description"] ?? "No description available.",
                     style: const TextStyle(fontSize: 16, color: Colors.black87),
@@ -92,7 +94,7 @@ class RecipeDetailScreen extends StatelessWidget {
                   const SizedBox(height: 15),
                   const Divider(),
 
-                  /// 📜 **Instructions**
+                  ///  **Instructions**
                   const Text(
                     "Instructions",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -108,34 +110,42 @@ class RecipeDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
 
-                  /// ✅ **Favourite Button**
+                  /// Show either Favourite or Delete button
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: () {
-                        onFavourite(recipe); // Calls function to add to favourites
-
-                        // Show message based on status
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              isFavourite ? "${recipe["name"]} removed from favourites!"
-                                  : "${recipe["name"]} added to favourites!",
+                        if (onDelete != null) {
+                          // 🗑️ User wants to delete their own recipe
+                          onDelete!();
+                          Navigator.pop(context);
+                        } else {
+                          // Add or remove from favourites
+                          onFavourite(recipe);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isFavourite
+                                    ? "${recipe["name"]} removed from favourites!"
+                                    : "${recipe["name"]} added to favourites!",
+                              ),
+                              duration: const Duration(seconds: 2),
                             ),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
+                          );
+                        }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isFavourite ? Colors.red : Colors.green,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
+                      icon: Icon(onDelete != null ? Icons.delete : (isFavourite ? Icons.cancel : Icons.favorite)),
+                      label: Text(
+                        onDelete != null ? "Delete Recipe" :
+                        isFavourite ? "Remove from Favourites" : "Add to Favourites",
                       ),
-                      child: Text(
-                        isFavourite ? "❌ Remove from Favourites" : "💚 Add to Favourites",
-                        style: const TextStyle(fontSize: 18, color: Colors.white),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: onDelete != null ? Colors.red : (isFavourite ? Colors.red : Colors.green),
+                        padding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
                   ),
+
                 ],
               ),
             ),

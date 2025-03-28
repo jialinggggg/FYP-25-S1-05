@@ -6,6 +6,8 @@ import 'favourites_screen.dart';
 import 'profile_screen.dart';
 import 'dashboard_screen.dart';
 import 'add_recipe.dart';
+import 'recipe_detail.dart';
+import 'dart:convert';
 
 class MyRecipesScreen extends StatefulWidget {
   static List<Map<String, dynamic>> staticMyRecipes = [];
@@ -191,8 +193,9 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
                     elevation: 2,
                     margin: const EdgeInsets.only(bottom: 10),
                     child: ListTile(
-                      leading: Image.asset(recipe["image"],
-                          width: 50, height: 50, fit: BoxFit.cover),
+                      leading: recipe["image"].toString().startsWith("http")
+                          ? Image.network(recipe["image"], width: 50, height: 50, fit: BoxFit.cover)
+                          : Image.asset(recipe["image"], width: 50, height: 50, fit: BoxFit.cover),
                       title: Text(recipe["name"],
                           style: const TextStyle(
                               fontWeight: FontWeight.bold)),
@@ -201,7 +204,40 @@ class MyRecipesScreenState extends State<MyRecipesScreen> {
                       trailing: const Icon(Icons.arrow_forward_ios,
                           size: 16, color: Colors.green),
                       onTap: () {
+                        // Decode JSON strings if needed
+                        final decodedRecipe = Map<String, dynamic>.from(recipe);
+
+                        // Decode ingredients if it's a string
+                        if (decodedRecipe["ingredients"] is String) {
+                          decodedRecipe["ingredients"] = List<Map<String, dynamic>>.from(
+                              jsonDecode(decodedRecipe["ingredients"])
+                          );
+                        }
+
+                        // Decode instructions if it's a string
+                        if (decodedRecipe["instructions"] is String) {
+                          decodedRecipe["instructions"] = List<Map<String, dynamic>>.from(
+                              jsonDecode(decodedRecipe["instructions"])
+                          );
+                        }
                         // Navigate to Recipe Detail
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RecipeDetailScreen(
+                              recipe: decodedRecipe,
+                              isFavourite: false,
+                              onFavourite: (_) {},
+                              onDelete: () {
+                                setState(() {
+                                  MyRecipesScreen.staticMyRecipes.remove(recipe);
+                                  filteredRecipes = List.from(MyRecipesScreen.staticMyRecipes);
+                                });
+                              },
+                            ),
+                          ),
+                        );
+
                       },
                     ),
                   );
