@@ -41,7 +41,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Payment successful via PayNow!")),
                 );
-                Navigator.pop(context, 'checkout_complete'); // Go back to previous screen
+                Navigator.pop(context, {
+                  "orderId": "O${DateTime.now().millisecondsSinceEpoch}",
+                  "customer": "Jackson", // You can replace this with real customer info if available
+                  "date": "${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
+                  "status": "Confirmed",
+                  "payment": "Paid",
+                  "total": "\$${calculateTotal().toStringAsFixed(2)}",
+                  "delivery": "Singapore",
+                  "products": widget.cart.keys.join(", "),
+                  "isNew": true,
+                });
               },
               child: const Text("Done"),
             ),
@@ -59,7 +69,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Payment successful via PayPal!")),
         );
-        Navigator.pop(context, 'checkout_complete');
+        Navigator.pop(context, {
+          "orderId": "O${DateTime.now().millisecondsSinceEpoch}",
+          "customer": "Jackson", // You can replace this with real customer info if available
+          "date": "${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}",
+          "status": "Confirmed",
+          "payment": "Paid",
+          "total": "\$${calculateTotal().toStringAsFixed(2)}",
+          "delivery": "Singapore",
+          "products": widget.cart.keys.join(", "),
+          "isNew": true,
+        });
       });
     }
   }

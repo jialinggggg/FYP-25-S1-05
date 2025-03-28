@@ -60,9 +60,11 @@ class CartScreenState extends State<CartScreen> {
       ),
     );
 
-    if (result == 'checkout_complete') {
-      // Clear cart and return to OrdersScreen
-      Navigator.pop(context, <String, int>{}); // Return empty cart
+    if (result != null && result is Map<String, dynamic>) {
+      Navigator.pop(context, {
+        "cart": <String, int>{}, // to clear the cart
+        "order": result           // to return the new order
+      });
     }
   }
 

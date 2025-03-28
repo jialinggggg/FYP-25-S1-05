@@ -6,6 +6,7 @@ import 'recipes_screen.dart';
 import 'main_log_screen.dart';
 import 'cart_screen.dart';
 import 'product_details.dart';
+import '../business/biz_orders_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -105,17 +106,27 @@ class OrdersScreenState extends State<OrdersScreen> {
 
   /// Open Cart Screen
   void _openCartScreen() async {
-    final updatedCart = await Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => CartScreen(cart: Map.from(cart))),
     );
 
-
-    if (updatedCart != null) {
+    if (result != null && result is Map<String, dynamic>) {
       setState(() {
-        cart = updatedCart;
+        // Update cart (empty after checkout)
+        cart = result["cart"] ?? {};
         _updateCartCount();
       });
+
+      if (result["order"] != null) {
+        // Add order statically to BizOrdersScreen
+        BizOrdersScreenState.addNewOrder(result["order"]);
+
+        //  show a toast or SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Order placed successfully!")),
+        );
+      }
     }
   }
 

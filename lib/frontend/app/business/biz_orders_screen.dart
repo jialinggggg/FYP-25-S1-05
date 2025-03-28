@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'biz_partner_dashboard.dart';
 import 'biz_products_screen.dart';
 import 'biz_profile_screen.dart';
+import 'biz_order_detail.dart';
 
 class BizOrdersScreen extends StatefulWidget {
   const BizOrdersScreen({super.key});
@@ -11,7 +12,7 @@ class BizOrdersScreen extends StatefulWidget {
 }
 
 class BizOrdersScreenState extends State<BizOrdersScreen> {
-  List<Map<String, dynamic>> orders = [
+  static final List<Map<String, dynamic>> _orderHistory = [
     {
       "orderId": "O100385203478104",
       "customer": "Jackson",
@@ -25,6 +26,12 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
     },
   ];
 
+  static void addNewOrder(Map<String, dynamic> order) {
+    if (!_orderHistory.any((o) => o["orderId"] == order["orderId"])) {
+      _orderHistory.insert(0, order);
+    }
+  }
+
   List<Map<String, dynamic>> filteredOrders = [];
   final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 2;
@@ -33,13 +40,13 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_filterOrders);
-    filteredOrders = List.from(orders);
+    filteredOrders = List.from(_orderHistory);
   }
 
   void _filterOrders() {
     setState(() {
       String query = _searchController.text.toLowerCase();
-      filteredOrders = orders.where((order) {
+      filteredOrders = _orderHistory.where((order) {
         return order["orderId"].toLowerCase().contains(query);
       }).toList();
     });
@@ -68,6 +75,18 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Handle new order passed via Navigator.pushNamed or push
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final newOrder = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+      if (newOrder != null && !_orderHistory.any((o) => o["orderId"] == newOrder["orderId"])) {
+        setState(() {
+          _orderHistory.insert(0, newOrder);
+          filteredOrders = List.from(_orderHistory);
+        });
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("My Orders", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
@@ -100,48 +119,60 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
                 itemCount: filteredOrders.length,
                 itemBuilder: (context, index) {
                   final order = filteredOrders[index];
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  order["orderId"],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => OrderDetailScreen(order: order),
+                        ),
+                      ).then((_) {
+                        setState(() {}); // Refresh after returning from detail screen
+                      });
+                    },
+                    child: Card(
+                      elevation: 2,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    order["orderId"],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (order["isNew"])
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(20),
+                                if (order["isNew"])
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: const Text(
+                                      "New",
+                                      style: TextStyle(color: Colors.white, fontSize: 12),
+                                    ),
                                   ),
-                                  child: const Text(
-                                    "New",
-                                    style: TextStyle(color: Colors.white, fontSize: 12),
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text("Customer Name: ${order["customer"]}"),
-                          Text("Order Date: ${order["date"]}"),
-                          Text("Product(s) Ordered: ${order["products"]}"),
-                          Text("Order Status: ${order["status"]}"),
-                          Text("Total Amount: ${order["total"]}"),
-                          Text("Payment Status: ${order["payment"]}"),
-                          Text("Delivery Address: ${order["delivery"]}"),
-                        ],
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text("Customer Name: ${order["customer"]}"),
+                            Text("Order Date: ${order["date"]}"),
+                            Text("Product(s) Ordered: ${order["products"]}"),
+                            Text("Order Status: ${order["status"]}"),
+                            Text("Total Amount: ${order["total"]}"),
+                            Text("Payment Status: ${order["payment"]}"),
+                            Text("Delivery Address: ${order["delivery"]}"),
+                          ],
+                        ),
                       ),
                     ),
                   );
