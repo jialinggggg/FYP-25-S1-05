@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../shared/login.dart';
 import 'biz_partner_dashboard.dart';
 import 'biz_products_screen.dart';
-import 'biz_orders_screen.dart';
 
 class BizProfileScreen extends StatefulWidget {
   const BizProfileScreen({super.key});
@@ -104,7 +103,7 @@ class BizProfileScreenState extends State<BizProfileScreen> {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizProductsScreen())); 
           break;
         case 2:
-         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
+        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen())); // ✅ Uncomment when BizOrdersScreen is ready
           break;
         case 3:
           break; // Stay on Profile Page
@@ -209,7 +208,7 @@ class BizProfileScreenState extends State<BizProfileScreen> {
         ),
       ),
 
-      /// **Bottom Navigation Bar (Updated for Business Partner)**
+      /// ✅ **Bottom Navigation Bar (Updated for Business Partner)**
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black54,

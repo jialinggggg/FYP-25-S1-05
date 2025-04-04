@@ -1,0 +1,30 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class RecipeReportService {
+  final SupabaseClient _supabase;
+  RecipeReportService(this._supabase);
+
+  Future<void> reportRecipe({
+    required String uid,
+    required int recipeId,
+    required String type,
+    required String comment,
+  }) async {
+    const validTypes = ['Spam Content', 'Inappropriate Content', 'Copyright Issues', 'Misinformation', 'Harmful or Dangerous', 'Other'];
+    if (!validTypes.contains(type)) {
+      throw Exception('Invalid report type.');
+    }
+    try {
+      await _supabase.from('recipes_report').insert({
+        'uid': uid,
+        'recipe_id': recipeId,
+        'type': type,
+        'comment': comment,
+        'status': 'pending',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      throw Exception('Error reporting recipe: $e');
+    }
+  }
+}

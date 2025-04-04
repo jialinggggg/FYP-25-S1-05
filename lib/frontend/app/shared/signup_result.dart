@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'login.dart';
 
 class SignupResult extends StatelessWidget {
   final String type; // 'business' or 'user'
@@ -51,11 +50,11 @@ class SignupResult extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    Navigator.pushAndRemoveUntil(
+                    Navigator.pushNamedAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                      (Route<dynamic> route) => false,
-                    );
+                      '/login',
+                      (route) => false, // Remove all previous routes
+                      );
                   },
                   child: Text(
                     isBusiness ? 'Back' : 'Go to Login',

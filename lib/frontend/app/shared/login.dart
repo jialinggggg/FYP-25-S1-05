@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../user/main_log_screen.dart';
-import 'signup_type.dart'; // Import SignupWelcome screen
+import '../user/meal/main_log_screen.dart';
 import '../../../../utils/dialog_utils.dart'; // Import DialogUtils
 import '../../../utils/input_validator.dart'; // Import InputValidator
 import '../business/biz_partner_dashboard.dart'; // Import BizPartnerDashboard screen
@@ -214,9 +213,9 @@ void initState() {
                         GestureDetector(
                           onTap: () {
                             // Navigate to SignupType screen
-                            Navigator.push(
+                            Navigator.pushNamed(
                               context,
-                              MaterialPageRoute(builder: (context) => const SignupType()),
+                              '/signup_type',
                             );
                           },
                           child: const Text(

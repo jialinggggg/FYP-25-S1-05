@@ -4,7 +4,7 @@ import '../../../backend/supabase/accounts_service.dart';
 import '../../../backend/supabase/user_profiles_service.dart';
 import '../../../backend/supabase/user_medical_service.dart';
 import '../../../backend/supabase/user_goals_service.dart';
-import '../../../backend/supabase/business_profile.dart';
+import '../../../backend/supabase/business_profiles_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final String uid;

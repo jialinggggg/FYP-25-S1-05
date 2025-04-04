@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../utils/input_validator.dart';
 import '../shared/signup_result.dart'; // Import the next page
-import '../../../backend/supabase/business_profile.dart'; // Import the BusinessProfilesService
+import '../../../../backend/supabase/business_profiles_service.dart'; // Import the BusinessProfilesService
 import '../../../backend/supabase/auth_user_service.dart'; // Import the AuthUsersService
 import '../../../backend/supabase/accounts_service.dart'; // Import the AccountService
 import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase

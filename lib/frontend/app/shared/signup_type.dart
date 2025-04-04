@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../user/signup_welcome.dart';
 import '../business/signup_biz_profile.dart';
+import '../../../../backend/state/signup_state.dart'; // Import your SignupState
+import 'package:provider/provider.dart'; // Import Provider
 
 class SignupType extends StatefulWidget {
   const SignupType({super.key});
@@ -14,7 +15,7 @@ class SignupTypeState extends State<SignupType> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: true, // Default back button
+        automaticallyImplyLeading: true,
         title: Text('Sign Up'),
       ),
       body: Padding(
@@ -31,14 +32,15 @@ class SignupTypeState extends State<SignupType> {
 
             // User Button
             SizedBox(
-              width: double.infinity, // Make the button full width
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Navigate to the signup_welcome.dart screen
-                  Navigator.push(
+                  // Clear state before navigation
+                  Provider.of<SignupState>(context, listen: false).clearAll();
+                  Navigator.pushNamed(
                     context,
-                    MaterialPageRoute(builder: (context) => SignupWelcome()),
-                  );
+                    '/signup_welcome',
+                    );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
@@ -57,13 +59,16 @@ class SignupTypeState extends State<SignupType> {
 
             // Business Partner Button
             SizedBox(
-              width: double.infinity, // Make the button full width
+              width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Navigate to the signup_biz.dart screen
+                  // Clear state before navigation
+                  Provider.of<SignupState>(context, listen: false).clearAll();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => SignupBizProfile()),
+                    MaterialPageRoute(
+                      builder: (context) => SignupBizProfile(),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
