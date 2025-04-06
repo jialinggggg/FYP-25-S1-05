@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../shared/login.dart';
 import 'biz_partner_dashboard.dart';
 import 'biz_products_screen.dart';
+import 'biz_orders_screen.dart';
 
 class BizProfileScreen extends StatefulWidget {
   const BizProfileScreen({super.key});
@@ -24,7 +25,7 @@ class BizProfileScreenState extends State<BizProfileScreen> {
   late TextEditingController _locationController;
 
   bool _isEditing = false; // Toggle between View & Edit Mode
-  int _selectedIndex = 3; // ✅ Profile tab index
+  int _selectedIndex = 3; // Profile tab index
 
   @override
   void initState() {
@@ -103,7 +104,7 @@ class BizProfileScreenState extends State<BizProfileScreen> {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizProductsScreen())); 
           break;
         case 2:
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen())); // ✅ Uncomment when BizOrdersScreen is ready
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
           break;
         case 3:
           break; // Stay on Profile Page

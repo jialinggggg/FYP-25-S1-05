@@ -13,17 +13,7 @@ class BizOrdersScreen extends StatefulWidget {
 
 class BizOrdersScreenState extends State<BizOrdersScreen> {
   static final List<Map<String, dynamic>> _orderHistory = [
-    {
-      "orderId": "O100385203478104",
-      "customer": "Jackson",
-      "date": "25/1/25",
-      "status": "Confirmed",
-      "payment": "Paid",
-      "total": "\$5.00",
-      "delivery": "Singapore",
-      "products": "Green Juice",
-      "isNew": true,
-    },
+
   ];
 
   static void addNewOrder(Map<String, dynamic> order) {

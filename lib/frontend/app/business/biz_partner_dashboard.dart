@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../user/recipes/add_recipe.dart';
 import 'biz_profile_screen.dart';
 import 'biz_products_screen.dart';
+import 'biz_orders_screen.dart';
 
 
 class BizPartnerDashboard extends StatefulWidget {
@@ -16,7 +17,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
   List<Map<String, dynamic>> recipes = [];
   List<Map<String, dynamic>> filteredRecipes = [];
   final TextEditingController _searchController = TextEditingController();
-  int _selectedIndex = 0; // ✅ Default to "Recipes" tab
+  int _selectedIndex = 0; 
 
   @override
   void initState() {
@@ -66,7 +67,7 @@ class BizPartnerDashboardState extends State<BizPartnerDashboard> {
           );
           break;
         case 2:
-
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
           break;
         case 3:
           Navigator.pushReplacement(

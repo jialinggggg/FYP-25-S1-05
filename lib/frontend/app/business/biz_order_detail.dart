@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../shared/order_store.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -41,9 +42,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   void _updateStatus(int newStep) {
+    SharedOrderStore.updateOrder(widget.order);
     setState(() {
       _currentStep = newStep;
       widget.order["status"] = _steps[newStep];
+
+
+    //Update the steps list to sync progress
+      widget.order["steps"] = _steps.asMap().entries.map((entry) {
+        return {
+          "title": entry.value,
+          "done": entry.key <= newStep,
+        };
+      }).toList();
+
+      SharedOrderStore.addOrUpdateUserOrder(widget.order);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(

@@ -7,6 +7,8 @@ import '../meal/main_log_screen.dart';
 import 'cart_screen.dart';
 import 'product_details.dart';
 import '../../business/biz_orders_screen.dart';
+import 'order_progress.dart';
+import '../../shared/order_store.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -111,6 +113,8 @@ class OrdersScreenState extends State<OrdersScreen> {
       MaterialPageRoute(builder: (context) => CartScreen(cart: Map.from(cart))),
     );
 
+    if (!mounted) return;
+
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
         // Update cart (empty after checkout)
@@ -121,6 +125,8 @@ class OrdersScreenState extends State<OrdersScreen> {
       if (result["order"] != null) {
         // Add order statically to BizOrdersScreen
         BizOrdersScreenState.addNewOrder(result["order"]);
+        SharedOrderStore.addOrUpdateUserOrder(result["order"]);
+        SharedOrderStore.addOrUpdateUserOrder(result["order"]);
 
         //  show a toast or SnackBar
         ScaffoldMessenger.of(context).showSnackBar(
@@ -145,14 +151,14 @@ class OrdersScreenState extends State<OrdersScreen> {
       String query = _searchController.text.toLowerCase().trim();
 
 
-      // ✅ Prevent errors if the search query is empty
+      // Prevent errors if the search query is empty
       if (query.isEmpty) {
         filteredProducts = List.from(products);
         return;
       }
 
       filteredProducts = products.where((product) {
-        // ✅ Ensure product name is valid before calling `.toLowerCase()`
+        //Ensure product name is valid before calling `.toLowerCase()`
         String name = product["name"]?.toLowerCase() ?? "";
         return name.contains(query);
       }).toList();
@@ -168,6 +174,18 @@ class OrdersScreenState extends State<OrdersScreen> {
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.track_changes),
+            tooltip: 'My Order Progress',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => UserOrdersProgressScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
