@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../../../backend/services/product_service.dart'; // Make sure the path matches your project name
 
 class BizProductDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -24,40 +25,88 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
   late TextEditingController _categoryController;
   late TextEditingController _stockController;
   String? _selectedImage;
+  bool _isDeleting = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.product["name"]);
-    _descriptionController = TextEditingController(text: widget.product["description"]);
-    _priceController = TextEditingController(text: widget.product["price"]);
-    _categoryController = TextEditingController(text: widget.product["category"]);
-    _stockController = TextEditingController(text: widget.product["stock"]);
-    _selectedImage = widget.product["image"];
+    _nameController = TextEditingController(text: widget.product["name"]?.toString());
+    _descriptionController = TextEditingController(text: widget.product["description"]?.toString());
+    _priceController = TextEditingController(text: widget.product["price"]?.toString());
+    _categoryController = TextEditingController(text: widget.product["category"]?.toString());
+    _stockController = TextEditingController(text: widget.product["stock"]?.toString());
+    _selectedImage = widget.product["image"]?.toString();
   }
 
-  /// **🖼 Pick Image Function (Future Feature)**
   void _pickImage() {
-    // Image picker logic can be added later if needed
+    // You can implement image picking later.
   }
 
-  /// **✅ Save Updated Product**
-  void _saveChanges() {
+  void _saveChanges() async {
+    // Gather the updated product information
     Map<String, dynamic> updatedProduct = {
       "name": _nameController.text,
       "description": _descriptionController.text,
       "price": _priceController.text,
       "category": _categoryController.text,
-      "stock": _stockController.text,
+      "stock": int.tryParse(_stockController.text) ?? 0,
       "status": widget.product["status"],
       "image": _selectedImage ?? "assets/default_image.png",
     };
 
-    widget.onUpdate(updatedProduct);
-    Navigator.pop(context);
+    try {
+      // Call the ProductService to update the product in Supabase
+      final response = await ProductService.updateProduct(
+        widget.product['id'], // product ID
+        updatedProduct,        // updated product data
+      );
+
+      if (response != null) {
+        // If the product was successfully updated in Supabase, update it in the parent widget
+        widget.onUpdate(updatedProduct);
+
+        // Ensure the context is still valid before navigating
+        if (mounted) {
+          Navigator.pop(context); // Close the details screen
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update product in Supabase')),
+        );
+      }
+    } catch (e) {
+      // Handle any errors
+      print('Error updating product: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
   }
 
-  /// **🗑 Confirm & Delete Product**
+  Future<void> _deleteProduct() async {
+    setState(() => _isDeleting = true);
+
+    try {
+      await ProductService.deleteProduct(widget.product['id'], _selectedImage);
+      widget.onDelete();
+
+      // Ensure the context is still valid before popping
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting product: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
+  }
+
   void _confirmDelete() {
     showDialog(
       context: context,
@@ -70,13 +119,11 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
             child: const Text("Cancel", style: TextStyle(color: Colors.black)),
           ),
           ElevatedButton(
-            onPressed: () {
-              widget.onDelete();
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Return to Product List
-            },
+            onPressed: _deleteProduct,
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+            child: _isDeleting
+                ? const CircularProgressIndicator(color: Colors.white)
+                : const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -86,24 +133,20 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      /// **App Bar**
       appBar: AppBar(
         title: const Text("Product Details", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-
-      /// **Body Content**
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// 🖼 **Product Image**
               GestureDetector(
-                onTap: _pickImage, // Click to update image
+                onTap: _pickImage,
                 child: Container(
                   height: 200,
                   decoration: BoxDecoration(
@@ -117,20 +160,12 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              /// 📝 **Product Name**
               const Text("Product Name", style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: _nameController, decoration: const InputDecoration(border: OutlineInputBorder())),
-
               const SizedBox(height: 10),
-
-              /// 📝 **Product Description**
               const Text("Description", style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(border: OutlineInputBorder())),
-
               const SizedBox(height: 10),
-
-              /// **Price & Stock**
               Row(
                 children: [
                   Expanded(
@@ -150,16 +185,10 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 10),
-
-              /// **Category**
               const Text("Category", style: TextStyle(fontWeight: FontWeight.bold)),
               TextField(controller: _categoryController, decoration: const InputDecoration(border: OutlineInputBorder())),
-
               const SizedBox(height: 20),
-
-              /// **Save & Delete Buttons**
               Row(
                 children: [
                   Expanded(
@@ -174,7 +203,9 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
                     child: ElevatedButton(
                       onPressed: _confirmDelete,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      child: const Text("Delete Product", style: TextStyle(color: Colors.white)),
+                      child: _isDeleting
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Delete Product", style: TextStyle(color: Colors.white)),
                     ),
                   ),
                 ],
