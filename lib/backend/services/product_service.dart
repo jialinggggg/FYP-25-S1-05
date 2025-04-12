@@ -5,13 +5,11 @@ class ProductService {
 
   /// **Delete product image and database record**
   static Future<void> deleteProduct(String productId, String? imagePath) async {
-    // Remove image from Supabase Storage if applicable
     if (imagePath != null && imagePath.startsWith('storage/')) {
       final path = imagePath.replaceFirst('storage/', '');
       await _supabase.storage.from('product_images').remove([path]);
     }
 
-    // Delete product from Supabase table
     await _supabase.from('products').delete().eq('id', productId);
   }
 
@@ -19,10 +17,9 @@ class ProductService {
   static Future<Map<String, dynamic>?> updateProduct(
       String productId, Map<String, dynamic> updatedProduct) async {
     try {
-      // Get the status based on stock value
       final status = (int.tryParse(updatedProduct['stock'].toString()) ?? 0) > 50
-          ? 'Out of stock' // If stock exceeds 50, mark as "Out of stock"
-          : 'Available';   // Otherwise, mark as "Available"
+          ? 'Out of stock'
+          : 'Available';
 
       final response = await _supabase.from('products').upsert({
         'id': productId,
@@ -31,28 +28,27 @@ class ProductService {
         'price': updatedProduct['price'],
         'category': updatedProduct['category'],
         'stock': updatedProduct['stock'],
-        'status': status, // Set status based on stock
+        'status': status,
         'image': updatedProduct['image']?.toString(),
       }).select().single();
 
-      // Return the updated product if successful
       return response;
     } catch (e) {
       print('Error updating product: $e');
-      return null; // Return null in case of an error
+      return null;
     }
   }
 
-  /// **Fetch Products from Supabase for the current seller**
+  /// **Fetch Products created by the currently logged-in seller**
   static Future<List<Map<String, dynamic>>> loadProducts() async {
     try {
-      final data = await _supabase.from('products')
+      final data = await _supabase
+          .from('products')
           .select()
           .eq('seller_id', _supabase.auth.currentUser!.id);
 
       if (data != null) {
-        List<dynamic> productList = data is List ? data : [];
-        return List<Map<String, dynamic>>.from(productList);
+        return List<Map<String, dynamic>>.from(data);
       } else {
         return [];
       }
@@ -62,10 +58,25 @@ class ProductService {
     }
   }
 
+/// ✅ **Fetch all 'Available' products for Users**
+static Future<List<Map<String, dynamic>>> loadAllAvailableProducts() async {
+  try {
+    final data = await _supabase
+        .from('products')
+        .select()
+        .eq('status', 'Available'); // Only fetch products that are available
+
+    return List<Map<String, dynamic>>.from(data);
+  } catch (e) {
+    print("Error fetching available products: $e");
+    return [];
+  }
+}
+
+
   /// **Insert a New Product into Supabase**
   static Future<void> insertProduct(Map<String, dynamic> newProduct) async {
     try {
-      // Determine product status based on the stock value
       final status = (int.tryParse(newProduct['stock'].toString()) ?? 0) > 50
           ? 'Out of stock'
           : 'Available';

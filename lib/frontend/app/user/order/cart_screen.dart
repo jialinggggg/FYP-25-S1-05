@@ -1,137 +1,128 @@
 import 'package:flutter/material.dart';
-import 'checkout.dart';
+import 'package:nutri_app/backend/services/cart_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CartScreen extends StatefulWidget {
-  final Map<String, int> cart; // Cart items (Product name -> Quantity)
-
-  const CartScreen({super.key, required this.cart});
+  const CartScreen({super.key});
 
   @override
-  CartScreenState createState() => CartScreenState();
+  State<CartScreen> createState() => _CartScreenState();
 }
 
-class CartScreenState extends State<CartScreen> {
-  final Map<String, double> productPrices = {
-    "Chicken Patty Meal": 10.00,
-    "Green Juice": 5.00,
-  };
-
-  /// **Increase Quantity**
-  void _increaseQuantity(String productName) {
-    setState(() {
-      widget.cart[productName] = (widget.cart[productName] ?? 0) + 1;
-    });
-    Navigator.pop(context, widget.cart);
-  }
-
-  void _decreaseQuantity(String productName) {
-    setState(() {
-      if (widget.cart[productName]! > 1) {
-        widget.cart[productName] = widget.cart[productName]! - 1;
-      } else {
-        widget.cart.remove(productName);
-      }
-    });
-    Navigator.pop(context, widget.cart);
-  }
-
-  /// **Calculate Total Price**
-  double _calculateTotal() {
-    double total = 0;
-    widget.cart.forEach((product, quantity) {
-      total += (productPrices[product] ?? 0) * quantity;
-    });
-    return total;
-  }
-
-  /// **Proceed to Checkout**
-  void _checkout() async {
-    if (widget.cart.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Your cart is empty!")),
-      );
-      return;
-    }
-
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CheckoutScreen(cart: widget.cart),
-      ),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      Navigator.pop(context, {
-        "cart": <String, int>{}, // to clear the cart
-        "order": result           // to return the new order
-      });
-    }
-  }
+class _CartScreenState extends State<CartScreen> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _cartItems = [];
+  bool _isLoading = true;
+  final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey();
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      /// **App Bar**
-      appBar: AppBar(
-        title: const Text("Your Cart", style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 1,
-      ),
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchCartItems();
+    });
+  }
 
-      /// **Body - List of Cart Items**
-      body: widget.cart.isEmpty
-          ? const Center(
-        child: Text(
-          "Your cart is empty!",
-          style: TextStyle(fontSize: 18, color: Colors.grey),
-        ),
-      )
-          : Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: widget.cart.length,
-              itemBuilder: (context, index) {
-                String productName = widget.cart.keys.elementAt(index);
-                int quantity = widget.cart[productName] ?? 1;
-                double price = productPrices[productName] ?? 0;
-                return _buildCartItem(productName, quantity, price);
-              },
-            ),
+  Future<void> _fetchCartItems() async {
+    try {
+      setState(() => _isLoading = true);
+      final items = await CartService.getCartItems();
+      
+      debugPrint('[CART] Fetched ${items.length} items');
+      if (items.isNotEmpty) {
+        debugPrint('[CART] First item: ${items.first}');
+      }
+
+      setState(() {
+        _cartItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error loading cart: ${e.toString()}")),
+      );
+    }
+  }
+
+  Future<void> _resetCart() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Reset Cart"),
+        content: const Text("Are you sure you want to clear your entire cart?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("CANCEL"),
           ),
-
-          /// **Total Price & Checkout Button**
-          _buildBottomBar(),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("RESET", style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      setState(() => _isLoading = true);
+      
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not authenticated');
+      
+      await _supabase
+          .from('carts')
+          .delete()
+          .eq('user_id', userId);
+
+      setState(() {
+        _cartItems = [];
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Cart has been reset")),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to reset cart: ${e.toString()}")),
+      );
+    }
   }
 
-  /// **🛍 Cart Item Tile**
-  Widget _buildCartItem(String productName, int quantity, double price) {
+  Widget _buildCartItem(Map<String, dynamic> item) {
+    final product = item['products'] as Map<String, dynamic>? ?? {};
+    final name = product['name']?.toString() ?? 'Unnamed Product';
+    final price = (product['price'] as num?)?.toDouble() ?? 0.0;
+    final quantity = (item['quantity'] as int?) ?? 1;
+    final cartItemId = item['id']?.toString() ?? '';
+
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(8),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        title: Text(
-          productName,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: Colors.grey[200],
+          child: product['image'] != null 
+              ? Image.asset(product['image'].toString())
+              : const Icon(Icons.shopping_cart),
         ),
-        subtitle: Text("Price: \$${price.toStringAsFixed(2)}"),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('\$${price.toStringAsFixed(2)}'),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.remove_circle_outline, color: Colors.red, size: 30),
-              onPressed: () => _decreaseQuantity(productName),
+              icon: const Icon(Icons.remove, color: Colors.red),
+              onPressed: () => _updateQuantity(cartItemId, quantity - 1),
             ),
-            Text("$quantity", style: const TextStyle(fontSize: 18)),
+            Text('$quantity', style: const TextStyle(fontSize: 16)),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: Colors.green, size: 30),
-              onPressed: () => _increaseQuantity(productName),
+              icon: const Icon(Icons.add, color: Colors.green),
+              onPressed: () => _updateQuantity(cartItemId, quantity + 1),
             ),
           ],
         ),
@@ -139,41 +130,129 @@ class CartScreenState extends State<CartScreen> {
     );
   }
 
-  /// **💰 Bottom Bar: Total Price & Checkout Button**
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey, width: 0.5)),
-      ),
-      child: Column(
-        children: [
-          /// **Total Price**
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text("Total:", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              Text("\$${_calculateTotal().toStringAsFixed(2)}",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
-            ],
-          ),
-          const SizedBox(height: 10),
+  Future<void> _updateQuantity(String cartItemId, int newQuantity) async {
+    try {
+      if (newQuantity < 1) {
+        await CartService.removeFromCart(cartItemId);
+      } else {
+        await CartService.updateCartItemQuantity(
+          cartItemId: cartItemId,
+          newQuantity: newQuantity,
+        );
+      }
+      await _fetchCartItems();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to update: ${e.toString()}")),
+      );
+    }
+  }
 
-          /// **Checkout Button**
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _checkout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text("Proceed to Checkout", style: TextStyle(fontSize: 18, color: Colors.white)),
-            ),
+  double _calculateTotal() {
+    return _cartItems.fold(0, (total, item) {
+      final quantity = (item['quantity'] as int?) ?? 0;
+      final price = ((item['products'] as Map)['price'] as num?)?.toDouble() ?? 0.0;
+      return total + (quantity * price);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Your Cart"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchCartItems,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: _cartItems.isEmpty ? null : _resetCart,
+            tooltip: 'Reset Cart',
           ),
         ],
+      ),
+      body: RefreshIndicator(
+        key: _refreshKey,
+        onRefresh: _fetchCartItems,
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _cartItems.isEmpty
+                ? const Center(child: Text("Your cart is empty"))
+                : Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: _cartItems.length,
+                          itemBuilder: (context, index) => 
+                              _buildCartItem(_cartItems[index]),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.5),
+                              spreadRadius: 1,
+                              blurRadius: 3,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("TOTAL:", 
+                                    style: TextStyle(fontSize: 18)),
+                                Text(
+                                  "\$${_calculateTotal().toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.red,
+                                      side: const BorderSide(color: Colors.red),
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    onPressed: _resetCart,
+                                    child: const Text("RESET CART"),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                    ),
+                                    onPressed: () {
+                                      // Checkout functionality would go here
+                                    },
+                                    child: const Text("CHECKOUT"),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
