@@ -42,46 +42,58 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
     // You can implement image picking later.
   }
 
-  void _saveChanges() async {
-    // Gather the updated product information
-    Map<String, dynamic> updatedProduct = {
-      "name": _nameController.text,
-      "description": _descriptionController.text,
-      "price": _priceController.text,
-      "category": _categoryController.text,
-      "stock": int.tryParse(_stockController.text) ?? 0,
-      "status": widget.product["status"],
-      "image": _selectedImage ?? "assets/default_image.png",
-    };
+ void _saveChanges() async {
+  int stock = int.tryParse(_stockController.text) ?? 0;
 
-    try {
-      // Call the ProductService to update the product in Supabase
-      final response = await ProductService.updateProduct(
-        widget.product['id'], // product ID
-        updatedProduct,        // updated product data
-      );
+  // Check if stock exceeds the limit
+  if (stock > 100) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("The stock limit reached (100 max)")),
+    );
+    return; // Exit the method to prevent updating if the stock exceeds 100
+  }
 
-      if (response != null) {
-        // If the product was successfully updated in Supabase, update it in the parent widget
-        widget.onUpdate(updatedProduct);
+  Map<String, dynamic> updatedProduct = {
+    "name": _nameController.text,
+    "description": _descriptionController.text,
+    "price": _priceController.text,
+    "category": _categoryController.text,
+    "stock": stock,
+    "status": widget.product["status"],
+    "image": _selectedImage ?? "assets/default_image.png",
+  };
 
-        // Ensure the context is still valid before navigating
-        if (mounted) {
-          Navigator.pop(context); // Close the details screen
-        }
-      } else {
+  try {
+    final response = await ProductService.updateProduct(
+      widget.product['id'],
+      updatedProduct,
+    );
+
+    if (response != null) {
+      widget.onUpdate(response); // Updated product sent to parent
+
+      // Check if response indicates stock was capped
+      if (response['wasCapped'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update product in Supabase')),
+          const SnackBar(content: Text("The stock limit reached (100 max)")),
         );
       }
-    } catch (e) {
-      // Handle any errors
-      print('Error updating product: $e');
+
+      if (mounted) Navigator.pop(context);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        const SnackBar(content: Text("Failed to update product")),
       );
     }
+  } catch (e) {
+    print('Error updating product: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
   }
+}
+
+
 
   Future<void> _deleteProduct() async {
     setState(() => _isDeleting = true);

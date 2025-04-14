@@ -38,24 +38,30 @@ class BizProductsScreenState extends State<BizProductsScreen> {
     });
   }
 
-  /// **➕ Navigate to Add Product Screen & Receive New Product**
-  void _navigateToAddProduct() async {
-    final newProduct = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddProductScreen()),
-    );
+/// **➕ Navigate to Add Product Screen & Receive New Product**
+void _navigateToAddProduct() async {
+  final newProduct = await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (context) => const AddProductScreen()),
+  );
 
-    if (newProduct != null) {
-      try {
-        // Insert new product using the service
-        await ProductService.insertProduct(newProduct);
-        _loadProducts(); // Reload products after insertion
-      } catch (error) {
-        // Handle any errors or notify the user
-        print("Error inserting product: $error");
+  if (newProduct != null) {
+    try {
+      // Insert new product and check if stock was capped
+      bool wasCapped = await ProductService.insertProduct(newProduct);
+
+      if (wasCapped) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("The stock limit reached")),
+        );
       }
+
+      _loadProducts(); // Reload products after insertion
+    } catch (error) {
+      print("Error inserting product: $error");
     }
   }
+}
 
   /// **Fetch Products from Supabase using the service**
   void _loadProducts() async {
