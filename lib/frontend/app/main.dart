@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+
 import '../../backend/state/signup_state.dart';
 import '../../backend/state/user_profile_state.dart';
 import '../../backend/state/recipe_state.dart';
@@ -20,6 +22,7 @@ import '../../backend/services/add_recipe_service.dart';
 import '../../backend/services/edit_recipe_service.dart';
 import '../../backend/controller/add_recipe_controller.dart';
 import '../../backend/controller/edit_recipe_controller.dart';
+
 import 'user/signup/signup_welcome.dart';
 import 'user/signup/signup_you.dart';
 import 'user/signup/signup_med.dart';
@@ -45,10 +48,25 @@ import 'user/profile/edit_med.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase
   await Supabase.initialize(
     url: 'https://mmyzsijycjxdkxglrxxl.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1teXpzaWp5Y2p4ZGt4Z2xyeHhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzcxNjM3MDEsImV4cCI6MjA1MjczOTcwMX0.kc1OUjoORjgnx2W3N5hG_LNwjvh1OZfy9r3M4-mq4_I',
   );
+
+  // Safe Stripe Initialization
+  try {
+    Stripe.publishableKey = 'pk_test_51RCCkoFTWCZkOCqTTyN8vwR2q6F8ZWPWOe6nWBgEGJSbLJGc5ZrTFKFnHmFTzKb4jRF9Vku2a9sTVR3W7kEQVqU200HIn3uNPm';
+    await Stripe.instance.applySettings();
+  } catch (e) {
+    debugPrint('Stripe init failed: $e');
+  }
+
+  // Enable Flutter error logging
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint(details.toString());
+  };
 
   runApp(const MyApp());
 }
@@ -82,7 +100,6 @@ class MyApp extends StatelessWidget {
           userProfilesRepo,
           BusinessProfilesRepository(supabase),
         )),
-        
         ChangeNotifierProvider(create: (_) => RecipeState()),
         Provider(create: (context) => AddRecipeService(
           context.read<RecipeRepository>(),
@@ -92,7 +109,6 @@ class MyApp extends StatelessWidget {
           context.read<AddRecipeService>(),
           context.read<RecipeState>(),
         )),
-
         ChangeNotifierProvider(create: (_) => RecipeState()),
         ProxyProvider<RecipeState, EditRecipeController>(
           update: (_, state, __) => EditRecipeController(
@@ -108,7 +124,7 @@ class MyApp extends StatelessWidget {
             state,
           ),
         ),
-      
+
         // Services
         Provider(create: (_) => SignupService(
           authRepo: AuthRepository(supabase),
@@ -122,8 +138,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => UserProfileState(
           context.read<UserProfileService>(),
         )),
-
-        
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -138,7 +152,7 @@ class MyApp extends StatelessWidget {
           '/': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
 
-          // Signup flow routes
+          // Signup flow
           '/signup_type': (context) => const SignupType(),
           '/signup_welcome': (context) => const SignupWelcome(),
           '/signup_you': (context) => const SignupYou(),
@@ -149,7 +163,7 @@ class MyApp extends StatelessWidget {
           '/signup_detail': (context) => const SignupDetail(),
           '/signup_result': (context) => const SignupResult(type: "user"),
 
-          // Main feature routes
+          // Main features
           '/profile': (context) => const ProfileScreen(),
           '/orders': (context) => const OrdersScreen(),
           '/recipes': (context) => const RecipesScreen(),
@@ -157,7 +171,7 @@ class MyApp extends StatelessWidget {
           '/log': (context) => const MainLogScreen(),
           '/dashboard': (context) => const MainReportDashboard(),
 
-          // Recipe routes
+          // Recipe detail with arguments
           '/recipe_detail': (context) {
             final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
             return RecipeDetailScreen(
@@ -166,21 +180,15 @@ class MyApp extends StatelessWidget {
             );
           },
 
-          // Profile edit routes
+          // Profile editing
           '/edit_profile': (context) => EditProfileScreen(
-            onProfileUpdated: () {
-              // This will be handled by the ProfileController when needed
-            },
+            onProfileUpdated: () {},
           ),
           '/edit_goals': (context) => EditGoalsScreen(
-            onUpdate: () {
-              // This will be handled by the ProfileController when needed
-            },
+            onUpdate: () {},
           ),
           '/edit_med': (context) => EditMedicalHistoryScreen(
-            onUpdate: () {
-              // This will be handled by the ProfileController when needed
-            },
+            onUpdate: () {},
           ),
         },
       ),

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:nutri_app/backend/services/cart_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
+import 'checkout.dart'; // Import the CheckoutScreen correctly
+
+
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -156,6 +162,94 @@ class _CartScreenState extends State<CartScreen> {
     });
   }
 
+  Future<void> _handleCheckout() async {
+  try {
+    setState(() => _isLoading = true);
+    
+    // Get the current session
+    final session = _supabase.auth.currentSession;
+    if (session == null) {
+      throw Exception('User not authenticated');
+    }
+
+    // Prepare simplified cart for checkout
+    final Map<String, int> simplifiedCart = {
+      for (var item in _cartItems)
+        item['products']['name']: item['quantity'] as int,
+    };
+
+    // Create payment intent with auth header
+    debugPrint('[CHECKOUT] Creating payment intent...');
+    final response = await http.post(
+      Uri.parse('https://mmyzsijycjxdkxglrxxl.supabase.co/functions/v1/create-payment-intent'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${session.accessToken}', // Add this line
+      },
+      body: jsonEncode({'amount': (_calculateTotal() * 100).toInt()}),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to create payment intent: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body);
+    final clientSecret = data['clientSecret'];
+    debugPrint('[CHECKOUT] Payment intent created');
+
+    // Initialize Payment Sheet
+    debugPrint('[CHECKOUT] Initializing payment sheet...');
+    await Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'NutriApp',
+        style: ThemeMode.light,
+        customFlow: false,
+      ),
+    );
+
+    // Present Payment Sheet
+    debugPrint('[CHECKOUT] Presenting payment sheet...');
+    try {
+      await Stripe.instance.presentPaymentSheet();
+      debugPrint('[CHECKOUT] Payment successful!');
+      
+      // Payment successful - navigate to CheckoutScreen
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CheckoutScreen(
+            cart: simplifiedCart,
+            orderId: "O${DateTime.now().millisecondsSinceEpoch}",
+            totalAmount: _calculateTotal(),
+          ),
+        ),
+      );
+    } on StripeException catch (e) {
+      debugPrint('[CHECKOUT] StripeException: ${e.error.localizedMessage}');
+      throw Exception('Payment failed: ${e.error.localizedMessage}');
+    } catch (e) {
+      debugPrint('[CHECKOUT] Payment sheet error: $e');
+      throw Exception('Payment failed: $e');
+    }
+  } catch (e) {
+    debugPrint('[CHECKOUT] Error: $e');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error during checkout: ${e.toString()}")),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,17 +328,14 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                Expanded(child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,padding: const EdgeInsets.symmetric(vertical: 16),),
+                                    onPressed: _handleCheckout,
+                                    child: const Text(
+                                      "CHECKOUT",style: TextStyle(color: Colors.white), // <-- Make text white
                                     ),
-                                    onPressed: () {
-                                      // Checkout functionality would go here
-                                    },
-                                    child: const Text("CHECKOUT"),
-                                  ),
+                                   ),
                                 ),
                               ],
                             ),
