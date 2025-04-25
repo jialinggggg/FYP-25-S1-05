@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nutri_app/backend/services/cart_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProductDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -38,15 +39,15 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Future<void> _addToCart() async {
     if (_isAdding || _showSuccess) return;
-    
+
     setState(() => _isAdding = true);
-    
+
     try {
       await CartService.addToCart(
         productId: widget.product["id"].toString(),
         quantity: quantity,
       );
-      
+
       widget.onAddToCart(widget.product["name"]);
 
       if (!mounted) return;
@@ -64,6 +65,70 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
     } finally {
       if (mounted) setState(() => _isAdding = false);
+    }
+  }
+
+  void _showReportDialog(BuildContext context) {
+    final TextEditingController reportController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Report Product"),
+          content: TextField(
+            controller: reportController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              hintText: "Describe the issue (e.g. scam, misleading info...)",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text("Submit"),
+              onPressed: () async {
+                final message = reportController.text.trim();
+                if (message.isNotEmpty) {
+                  Navigator.of(context).pop();
+                  await _submitReport(message);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _submitReport(String message) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You must be logged in to report.")),
+        );
+        return;
+      }
+
+      await Supabase.instance.client.from('product_report').insert({
+        'product_id': widget.product["id"],
+        'user_id': user.id,
+        'message': message,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Thank you for your report!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to submit report: $e")),
+      );
     }
   }
 
@@ -85,7 +150,7 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
               widget.product["image"],
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.image_not_supported, size: 100),
+                  const Icon(Icons.image_not_supported, size: 100),
             ),
           ),
           Expanded(
@@ -108,42 +173,51 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     "Description",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  SizedBox(height: 6),
-                  Text(widget.product["description"] ?? "", 
-                      style: const TextStyle(fontSize: 16, color: Colors.black87)),
-                  Column(
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.product["description"] ?? "",
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    "Add Quantity",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        "Add Quantity",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, size: 30),
+                        onPressed: _decreaseQuantity,
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, size: 30),
-                            onPressed: _decreaseQuantity,
-                          ),
-                          Container(
-                            width: 50,
-                            height: 40,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              color: Colors.grey[300],
-                            ),
-                            child: Text(
-                              quantity.toString(),
-                              style: const TextStyle(fontSize: 20),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline, size: 30),
-                            onPressed: _increaseQuantity,
-                          ),
-                        ],
+                      Container(
+                        width: 50,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.grey[300],
+                        ),
+                        child: Text(
+                          quantity.toString(),
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 30),
+                        onPressed: _increaseQuantity,
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => _showReportDialog(context),
+                      child: const Text(
+                        "Report this Product",
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -185,7 +259,7 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
                           children: [
                             Icon(Icons.check, color: Colors.white),
                             SizedBox(width: 8),
-                            Text("Added to Cart", 
+                            Text("Added to Cart",
                                 style: TextStyle(color: Colors.white)),
                           ],
                         )
