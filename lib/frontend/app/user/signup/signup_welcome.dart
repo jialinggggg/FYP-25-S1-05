@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import '../../../../services/country_service.dart';
-import '../../../../backend/state/signup_state.dart';
-import '../../../../backend/services/input_validation_service.dart';
+import '../../../../backend/signup/signup_state.dart';
+import '../../../../backend/signup/input_validation_service.dart';
 import '../../../../utils/dialog_utils.dart';
 
 class SignupWelcome extends StatefulWidget {

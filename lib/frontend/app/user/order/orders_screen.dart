@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:nutri_app/backend/services/product_service.dart';
-import '../report/dashboard_screen.dart';
+import '../report/main_report_screen.dart';
 import '../profile/profile_screen.dart';
-import '../recipes/recipes_screen.dart';
+import '../recipes/main_recipe_screen.dart';
 import '../meal/main_log_screen.dart';
 import 'cart_screen.dart';
 import 'product_details.dart';
@@ -100,7 +100,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const RecipesScreen()),
+          MaterialPageRoute(builder: (context) => const MainRecipeScreen()),
         );
         break;
       case 2:
@@ -112,7 +112,7 @@ class OrdersScreenState extends State<OrdersScreen> {
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainReportDashboard()),
+          MaterialPageRoute(builder: (context) => const MainReportScreen()),
         );
         break;
       case 4:

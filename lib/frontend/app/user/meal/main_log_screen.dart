@@ -1,513 +1,490 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'add_food_screen.dart';
-import '../report/dashboard_screen.dart';
-import '../profile/profile_screen.dart';
-import '../recipes/recipes_screen.dart';
-import '../order/orders_screen.dart';
-import '../../../../backend/supabase/user_goals_service.dart';
-import '../../../../backend/supabase/meal_entries_service.dart';
-import '../../../../backend/supabase/user_measurements_service.dart';
-import '../../../../backend/supabase/user_profiles_service.dart';
+import 'package:percent_indicator/circular_percent_indicator.dart';
+
+import 'package:nutri_app/backend/controllers/view_daily_nutri_info_controller.dart';
+import 'package:nutri_app/backend/controllers/log_daily_weight_controller.dart';
+import 'package:nutri_app/backend/controllers/view_encouragement_controller.dart';
+import 'package:nutri_app/frontend/app/user/meal/log_meal_screen.dart';
 
 class MainLogScreen extends StatefulWidget {
   const MainLogScreen({super.key});
 
   @override
-  MainLogScreenState createState() => MainLogScreenState();
+  State<MainLogScreen> createState() => _MainLogScreenState();
 }
 
-class MainLogScreenState extends State<MainLogScreen> {
-  int _selectedIndex = 2;
+class _MainLogScreenState extends State<MainLogScreen> {
+  late final SupabaseClient _supabase;
   final TextEditingController _weightController = TextEditingController();
-  int remainingCalories = 0;
-  int totalCaloriesEaten = 0;
-  double totalCarbs = 0;
-  double totalProtein = 0;
-  double totalFat = 0;
-  double? userWeight;
-  int totalDailyGoal = 0;
-  double height = 0;
-  bool _hasLoggedWeightToday = false;
-  bool _isEditingWeight = false;
-  String? _measurementId;
+  late final PageController _pageController;
+  late final Timer _timer;
 
-  // Declare services as late
-  late final UserGoalsService _userGoalsService;
-  late final MealEntriesService _mealEntriesService;
-  late final UserProfilesService _userProfilesService;
-  late final UserMeasurementService _userMeasurementService;
+  int _currentPage = 0;
+  bool _isEditing = false;
+  bool _showDetailedNutrition = false;
+  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize services
-    _userGoalsService = UserGoalsService(Supabase.instance.client);
-    _mealEntriesService = MealEntriesService(Supabase.instance.client);
-    _userProfilesService = UserProfilesService(Supabase.instance.client);
-    _userMeasurementService = UserMeasurementService(
-      Supabase.instance.client,
-      _userProfilesService,
-    );
-
-    // Fetch data
-    _fetchDailyCalories();
-    _fetchDailyTotals();
-    _checkIfWeightLoggedToday();
+    _supabase = Supabase.instance.client;
+    _pageController = PageController();
+    _startAutoSlide();
+    _loadDataForDate(_selectedDate);
   }
 
-  Map<String, int> mealCalories = {
-    "Breakfast": 0,
-    "Lunch": 0,
-    "Dinner": 0,
-    "Snacks": 0,
-  };
+  @override
+  void dispose() {
+    _timer.cancel();
+    _pageController.dispose();
+    _weightController.dispose();
+    super.dispose();
+  }
 
-  /// Navigation Logic
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+  void _startAutoSlide() {
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      setState(() => _currentPage = (_currentPage + 1) % 2);
+      _pageController.animateToPage(
+        _currentPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
     });
-
-    switch (index) {
-      case 0: // Orders
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const OrdersScreen()),
-        );
-        break;
-      case 1: // Recipes
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RecipesScreen()),
-        );
-        break;
-      case 2: // Log (stay here)
-        break;
-      case 3: // Dashboard
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainReportDashboard()),
-        );
-        break;
-      case 4: // Profile
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen()),
-        );
-        break;
-    }
   }
 
-  Future<void> _fetchDailyCalories() async {
-    try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
+  void _loadDataForDate(DateTime date) {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return;
 
-      final goals = await _userGoalsService.fetchGoals(userId);
-      if (goals != null) {
-        setState(() {
-          totalDailyGoal = goals['daily_calories'];
-          remainingCalories = totalDailyGoal;
-        });
+    // 1) weight for the selected date (or fallback)
+    context.read<LogDailyWeightController>().fetchWeightForDate(uid, date);
+
+    // 2) encouragement (always based on today’s streak & weight)
+    final enc = context.read<ViewEncouragementController>();
+    enc.fetchMealLoggingStreak(uid);
+    enc.fetchWeightEncouragement(uid);
+
+    // 3) nutrition summary for the selected date
+    final nut = context.read<ViewDailyNutritionInfoController>();
+    nut.calculateRemainingCalories(uid, date);
+    nut.fetchMealTypeCalories(uid, date);
+    nut.fetchDailyGoalCalories(uid);
+  }
+
+  void _previousDate() {
+    setState(() => _selectedDate = _selectedDate.subtract(const Duration(days: 1)));
+    _loadDataForDate(_selectedDate);
+  }
+
+  void _nextDate() {
+    setState(() => _selectedDate = _selectedDate.add(const Duration(days: 1)));
+    _loadDataForDate(_selectedDate);
+  }
+
+  Future<void> _saveWeight() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null || !mounted) return;
+
+    try {
+      final w = double.parse(_weightController.text);
+      await context
+          .read<LogDailyWeightController>()
+          .logWeightForDate(uid, w, _selectedDate);
+
+      await context.read<ViewEncouragementController>().fetchWeightEncouragement(uid);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Weight saved!'), backgroundColor: Colors.green),
+        );
+        setState(() => _isEditing = false);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching daily calories: $e')),
+          SnackBar(content: Text('Failed to save weight: $e')),
         );
       }
     }
-  }
-
-  /// Fetch daily totals and update UI
-  Future<void> _fetchDailyTotals() async {
-    try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final dailyTotals = await _mealEntriesService.calculateDailyTotals(userId, DateTime.now());
-      final mealTypeCalories = await _mealEntriesService.calculateCaloriesByMealType(userId, DateTime.now());
-
-      setState(() {
-        totalCaloriesEaten = dailyTotals['totalCalories'] as int;
-        totalCarbs = double.parse((dailyTotals['totalCarbs'] as double).toStringAsFixed(2));
-        totalProtein = double.parse((dailyTotals['totalProtein'] as double).toStringAsFixed(2));
-        totalFat = double.parse((dailyTotals['totalFats'] as double).toStringAsFixed(2));
-        remainingCalories = (totalDailyGoal - totalCaloriesEaten).clamp(0, totalDailyGoal);
-
-        mealCalories = mealTypeCalories;
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error fetching daily totals: $e')),
-        );
-      }
-    }
-  }
-
-  /// Check if the user has logged their weight today
-  Future<void> _checkIfWeightLoggedToday() async {
-    try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final today = DateTime.now();
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
-
-      final response = await Supabase.instance.client
-          .from('user_measurements')
-          .select()
-          .eq('uid', userId)
-          .gte('created_at', startOfDay.toIso8601String())
-          .lte('created_at', endOfDay.toIso8601String());
-
-      if (response.isNotEmpty) {
-        setState(() {
-          _hasLoggedWeightToday = true;
-          _measurementId = response.first['measurement_id'].toString();
-          _weightController.text = response.first['weight'].toStringAsFixed(0);
-        });
-      } else {
-        final latestMeasurement = await _userMeasurementService.fetchLatestMeasurement(userId);
-        if (latestMeasurement != null) {
-          setState(() {
-            _weightController.text = latestMeasurement['weight'].toStringAsFixed(0);
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error checking weight log: $e')),
-        );
-      }
-    }
-  }
-
-  /// Submit or update weight
-  Future<void> _submitOrUpdateWeight() async {
-    try {
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
-
-      final weight = double.tryParse(_weightController.text);
-      if (weight == null || weight <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid weight.')),
-        );
-        return;
-      }
-
-      if (_hasLoggedWeightToday) {
-        // Update existing measurement
-        await _userMeasurementService.updateMeasurement(
-          measurementId: _measurementId!,
-          weight: weight,
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Weight updated successfully!')),
-          );
-        }
-      } else {
-        // Insert new measurement
-        await _userMeasurementService.insertMeasurement(
-          uid: userId,
-          weight: weight,
-        );
-        setState(() {
-          _hasLoggedWeightToday = true;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Weight logged successfully!')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error logging weight: $e')),
-        );
-      }
-    }
-  }
-
-  /// Builds the Summary Card Widget
-  Widget _buildSummaryCard() {
-    double progress = totalCaloriesEaten / totalDailyGoal;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            "Remaining Calories",
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54),
-          ),
-          const SizedBox(height: 10),
-
-          /// Circular Progress Indicator
-          CircularPercentIndicator(
-            radius: 80.0,
-            lineWidth: 12.0,
-            percent: progress.clamp(0.0, 1.0),
-            center: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "$remainingCalories kcal",
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const Text(
-                  "Remaining",
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
-            progressColor: Colors.green,
-            backgroundColor: Colors.grey[300]!,
-            circularStrokeCap: CircularStrokeCap.round,
-            animation: true,
-            animationDuration: 800,
-          ),
-          const SizedBox(height: 10),
-          Divider(color: Colors.grey[400]),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildMacroIndicator(totalCaloriesEaten.toDouble(), "Calories", Colors.yellow[800]!),
-              _buildMacroIndicator(totalCarbs, "Carbs", Colors.amber[800]!),
-              _buildMacroIndicator(totalProtein, "Protein", Colors.purple[800]!),
-              _buildMacroIndicator(totalFat, "Fats", Colors.lightBlue[800]!),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Builds Macro Indicator Widgets.
-  Widget _buildMacroIndicator(double value, String label, Color color) {
-    return Column(
-      children: [
-        Text(
-          "$value g",
-          style:
-          TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16),
-        ),
-        Text(label,
-            style: const TextStyle(color: Colors.grey, fontSize: 14)),
-      ],
-    );
-  }
-
-  /// Builds the Daily Weight Widget with text input and increment/decrement buttons
-  Widget _buildDailyWeightWidget() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _hasLoggedWeightToday && !_isEditingWeight ? Colors.grey[300] : Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Text(
-            "Log Your Weight",
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                onPressed: _hasLoggedWeightToday && !_isEditingWeight ? null : () {
-                  setState(() {
-                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
-                    currentWeight = (currentWeight - 1).clamp(0, double.infinity);
-                    _weightController.text = currentWeight.toStringAsFixed(0);
-                  });
-                },
-              ),
-              SizedBox(
-                width: 100, // Fixed width to help center the input field
-                child: TextField(
-                  controller: _weightController,
-                  textAlign: TextAlign.center, // Center the text inside the field
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Weight (kg)",
-                    border: OutlineInputBorder(),
-                  ),
-                  enabled: !_hasLoggedWeightToday || _isEditingWeight,
-                  onChanged: (value) {
-                    double? newWeight = double.tryParse(value);
-                    if (newWeight != null) {
-                      setState(() {
-                        userWeight = newWeight;
-                      });
-                    }
-                  },
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, color: Colors.green),
-                onPressed: _hasLoggedWeightToday && !_isEditingWeight ? null : () {
-                  setState(() {
-                    double currentWeight = double.tryParse(_weightController.text) ?? 0;
-                    currentWeight += 1;
-                    _weightController.text = currentWeight.toStringAsFixed(0);
-                  });
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          if (_hasLoggedWeightToday && !_isEditingWeight)
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _isEditingWeight = true;
-                });
-              },
-              child: const Text("Edit Weight"),
-            ),
-          if (!_hasLoggedWeightToday || _isEditingWeight)
-            ElevatedButton(
-              onPressed: () async {
-                await _submitOrUpdateWeight();
-                setState(() {
-                  _isEditingWeight = false;
-                });
-              },
-              child: Text(_hasLoggedWeightToday ? "Update Weight" : "Submit Weight"),
-            ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(
-          "Food Log",
-          style: TextStyle(color: Colors.green[800], fontSize: 22, fontWeight: FontWeight.bold),
+        title: const Text(
+          'Meal Journal',
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
         ),
-        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
-                const Text(
-                  "Summary",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _buildSummaryCard(),
-                const SizedBox(height: 20),
-                const Text(
-                  "Meal Tracker",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Column(
-                  children: [
-                    _buildMealTile("Breakfast", mealCalories["Breakfast"] ?? 0, "assets/breakfast.png"),
-                    _buildMealTile("Lunch", mealCalories["Lunch"] ?? 0, "assets/lunch.png"),
-                    _buildMealTile("Dinner", mealCalories["Dinner"] ?? 0, "assets/dinner.png"),
-                    _buildMealTile("Snacks", mealCalories["Snacks"] ?? 0, "assets/snacks.png"),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _buildDailyWeightWidget(), // Moved this here below Meal Tracker
-              ],
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
+              _buildBannerSection(),
+              const SizedBox(height: 20),
+              _buildDateSelector(),
+              const SizedBox(height: 20),
+              const Text(
+                'Summary',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              const SizedBox(height: 10),
+              _buildSummaryCard(),
+              const SizedBox(height: 20),
+              const Text(
+                'Meal Tracker',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+              const SizedBox(height: 10),
+              _buildMealTiles(),
+              const SizedBox(height: 20),
+              _buildWeightWidget(),
+              const SizedBox(height: 20),
+            ],
           ),
         ),
       ),
-      // Bottom Navigation Bar
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(CupertinoIcons.list_bullet_below_rectangle,), label: "Logs"),
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: "Dashboard"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+      bottomNavigationBar: _buildBottomNavBar(),
+    );
+  }
+
+  Widget _buildBannerSection() {
+    return Consumer<ViewEncouragementController>(
+      builder: (_, ctrl, __) {
+        final streak = ctrl.mealStreakMessage;
+        final wEnc = ctrl.weightEncouragement['message'] ?? '';
+        if (streak.isEmpty && wEnc.isEmpty) return const SizedBox.shrink();
+
+        return SizedBox(
+          height: 80,
+          child: PageView(
+            controller: _pageController,
+            children: [
+              if (streak.isNotEmpty) _buildBanner(streak, 'success'),
+              if (wEnc.isNotEmpty) _buildBanner(wEnc, ctrl.weightEncouragement['status'] ?? 'neutral'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBanner(String msg, String status) {
+    late IconData icon;
+    late Color color;
+    switch (status) {
+      case 'success':
+        icon = Icons.emoji_events;
+        color = Colors.orange;
+        break;
+      case 'warning':
+        icon = Icons.warning_amber;
+        color = Colors.redAccent;
+        break;
+      default:
+        icon = Icons.info_outline;
+        color = Colors.blue;
+        break;
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color.withAlpha(40),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(width: 10),
+          Expanded(child: Text(msg, style: TextStyle(fontSize: 16, color: color))),
         ],
       ),
     );
   }
 
-  Widget _buildMealTile(String mealType, int kcal, String iconPath) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: AssetImage(iconPath),
-          backgroundColor: Colors.grey,
+  Widget _buildDateSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left, color: Colors.green),
+          onPressed: _previousDate,
         ),
-        title: Text(mealType, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("$kcal kcal"),
-        trailing: IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          onPressed: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddFoodScreen(
-                  mealType: mealType,
+        Text(
+          DateFormat('MMM d, yyyy').format(_selectedDate),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right, color: Colors.green),
+          onPressed: _nextDate,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard() {
+    return Consumer<ViewDailyNutritionInfoController>(
+      builder: (_, ctrl, __) {
+        final taken = ctrl.dailyTotals['calories'] ?? 0.0;
+        final goal = ctrl.dailyCalorieGoal;
+        final rem = goal - taken;
+        final pct = (taken / goal).clamp(0.0, 1.0);
+        final over = rem < 0;
+        final remTxt = over ? '${rem.abs().toInt()} kcal' : '${rem.toInt()} kcal';
+        final label = over ? 'Over' : 'Remaining';
+        final col = over ? const Color(0xFFEF6666) : Colors.green;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            children: [
+              const Text(
+                'Remaining Calories',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+              ),
+              const SizedBox(height: 10),
+              CircularPercentIndicator(
+                radius: 80,
+                lineWidth: 12,
+                percent: pct,
+                center: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(remTxt, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                  ],
+                ),
+                progressColor: col,
+                backgroundColor: Colors.grey[300]!,
+                circularStrokeCap: CircularStrokeCap.round,
+                animation: true,
+              ),
+              const SizedBox(height: 10),
+              const Divider(color: Colors.grey),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _nutriItem('Calories', taken.toStringAsFixed(0), 'kcal'),
+                  _nutriItem('Protein', ctrl.dailyTotals['protein']?.toStringAsFixed(1) ?? '0.0', 'g'),
+                  _nutriItem('Carbs', ctrl.dailyTotals['carbohydrates']?.toStringAsFixed(1) ?? '0.0', 'g'),
+                  _nutriItem('Fats', ctrl.dailyTotals['fat']?.toStringAsFixed(1) ?? '0.0', 'g'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => setState(() => _showDetailedNutrition = !_showDetailedNutrition),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _showDetailedNutrition ? 'Hide Detailed Nutrition' : 'See Detailed Nutrition',
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                    Icon(_showDetailedNutrition ? Icons.arrow_drop_up : Icons.arrow_drop_down, color: Colors.green),
+                  ],
                 ),
               ),
-            );
+              if (_showDetailedNutrition) ..._detailedNutrition(ctrl.dailyTotals),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
-            // Refresh data when returning from AddFoodScreen
-            if (result == true) {
-              _fetchDailyTotals();
-            }
-          },
+  Widget _nutriItem(String label, String val, String unit) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Text(val, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+            const SizedBox(width: 2),
+            Text(unit, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+          ],
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
+  }
+
+  List<Widget> _detailedNutrition(Map<String, double> totals) {
+    const nutrients = [
+      'Calories','Protein','Carbohydrates','Fat','Saturated Fat','Cholesterol',
+      'Sodium','Potassium','Calcium','Iron','Vitamin A','Vitamin C','Vitamin D','Fiber','Sugar'
+    ];
+    return nutrients.map((n) {
+      final v = totals[n.toLowerCase()] ?? 0.0;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(n, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            Text(v.toStringAsFixed(1), style: const TextStyle(fontSize: 14)),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildMealTiles() {
+    return Column(
+      children: ['Breakfast', 'Lunch', 'Dinner', 'Snacks']
+          .map((meal) => _buildMealTile(meal, 'assets/${meal.toLowerCase()}.png'))
+          .toList(),
+    );
+  }
+
+  Widget _buildMealTile(String mealType, String icon) {
+    return Consumer<ViewDailyNutritionInfoController>(
+      builder: (_, ctrl, __) {
+        final taken = ctrl.mealTypeCalories[mealType] ?? 0.0;
+        final goal = ctrl.dailyCalorieGoal;
+        final ratio = <String, double>{
+          'Breakfast': 0.25,
+          'Lunch': 0.30,
+          'Dinner': 0.30,
+          'Snacks': 0.15,
+        }[mealType]!;
+        final target = goal * ratio;
+
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(backgroundImage: AssetImage(icon)),
+            title: Text(mealType, style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text('${taken.toStringAsFixed(0)} / ${target.toStringAsFixed(0)} kcal'),
+            trailing: const Icon(Icons.add_circle_outline),
+            onTap: () {
+              if (!mounted) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LogMealScreen(
+                    mealType: mealType,
+                    selectedDate: _selectedDate,
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWeightWidget() {
+    return Consumer<LogDailyWeightController>(
+      builder: (_, ctrl, __) {
+        if (ctrl.latestWeight != null && _weightController.text.isEmpty) {
+          _weightController.text = ctrl.latestWeight!.toStringAsFixed(1);
+        }
+        final isLogged = ctrl.isWeightLogged;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isLogged && !_isEditing ? Colors.grey[300] : Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              const Text('Log Your Weight', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle),
+                    onPressed: (isLogged && !_isEditing)
+                        ? null
+                        : () {
+                            final c = double.tryParse(_weightController.text) ?? 0.0;
+                            setState(() => _weightController.text = (c - 0.5).toStringAsFixed(1));
+                          },
+                    color: (isLogged && !_isEditing) ? Colors.grey : Colors.red,
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 120,
+                    child: TextField(
+                      controller: _weightController,
+                      textAlign: TextAlign.center,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      enabled: !isLogged || _isEditing,
+                      decoration: const InputDecoration(
+                        labelText: 'Weight (kg)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle),
+                    onPressed: (isLogged && !_isEditing)
+                        ? null
+                        : () {
+                            final c = double.tryParse(_weightController.text) ?? 0.0;
+                            setState(() => _weightController.text = (c + 0.5).toStringAsFixed(1));
+                          },
+                    color: (isLogged && !_isEditing) ? Colors.grey : Colors.green,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: (isLogged && !_isEditing) ? null : _saveWeight,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: Text(_isEditing ? 'Save Weight' : 'Submit Weight'),
+              ),
+              if (isLogged && !_isEditing)
+                TextButton(
+                  onPressed: () => setState(() => _isEditing = true),
+                  child: const Text('Edit Weight', style: TextStyle(color: Colors.green)),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomNavBar() {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 2,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      onTap: (i) {
+        if (i == 2) return;
+        Navigator.pushReplacementNamed(
+          context,
+          ['/orders', '/main_recipes', '/log', '/dashboard', '/profile'][i],
+        );
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Orders'),
+        BottomNavigationBarItem(icon: Icon(Icons.menu_book), label: 'Recipes'),
+        BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Journal'),
+        BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      ],
     );
   }
 }

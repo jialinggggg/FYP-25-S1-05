@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../backend/state/signup_state.dart';
-import '../../../../backend/services/input_validation_service.dart';
-import '../../../../backend/utils/input_validator.dart';
+import '../../../../backend/signup/signup_state.dart';
+import '../../../../backend/signup/input_validation_service.dart';
+import '../../../../backend/signup/input_validator.dart';
 import '../../../../utils/date_picker.dart';
 
 class SignupYou extends StatefulWidget {

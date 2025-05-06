@@ -4,6 +4,7 @@ class RecipeRating {
   final int recipeId;
   final int rating;
   final String comment;
+  final String sourceType;
   final DateTime createdAt;
 
   RecipeRating({
@@ -12,6 +13,7 @@ class RecipeRating {
     required this.recipeId,
     required this.rating,
     required this.comment,
+    required this.sourceType,
     required this.createdAt,
   });
 
@@ -22,6 +24,7 @@ class RecipeRating {
       recipeId: map['recipe_id'] as int,
       rating: map['rating'] as int,
       comment: map['comment'] as String,
+      sourceType: map['source_type'] as String,
       createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
     );
   }
@@ -33,30 +36,8 @@ class RecipeRating {
       'recipe_id': recipeId,
       'rating': rating,
       'comment': comment,
+      'source_type': sourceType,
       'created_at': createdAt.toUtc().toIso8601String(),
     };
-  }
-
-  RecipeRating copyWith({
-    String? ratingId,
-    String? uid,
-    int? recipeId,
-    int? rating,
-    String? comment,
-    DateTime? createdAt,
-  }) {
-    return RecipeRating(
-      ratingId: ratingId ?? this.ratingId,
-      uid: uid ?? this.uid,
-      recipeId: recipeId ?? this.recipeId,
-      rating: rating ?? this.rating,
-      comment: comment ?? this.comment,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'RecipeRating(ratingId: $ratingId, uid: $uid, recipeId: $recipeId, rating: $rating, comment: $comment, createdAt: $createdAt)';
   }
 }

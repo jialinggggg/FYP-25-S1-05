@@ -1,68 +1,40 @@
+// lib/backend/entities/business_profile.dart
+
 class BusinessProfile {
-  final String uid;
-  final String name;
+  final String businessName;
   final String registrationNo;
   final String country;
   final String address;
-  final String type;
-  final String description;
+  final String description;            // ← new
+  final String contactName;
+  final String contactRole;
+  final String contactEmail;
+  final String website;
+  final List<String> registrationDocUrls; // ← list of URLs
 
   BusinessProfile({
-    required this.uid,
-    required this.name,
+    required this.businessName,
     required this.registrationNo,
     required this.country,
     required this.address,
-    required this.type,
-    required this.description,
+    required this.description,         // ← new
+    required this.contactName,
+    required this.contactRole,
+    required this.contactEmail,
+    required this.website,
+    required this.registrationDocUrls,
   });
 
-  factory BusinessProfile.fromMap(Map<String, dynamic> map) {
-    return BusinessProfile(
-      uid: map['uid'] as String,
-      name: map['name'] as String,
-      registrationNo: map['registration_no'] as String,
-      country: map['country'] as String,
-      address: map['address'] as String,
-      type: map['type'] as String,
-      description: map['description'] as String,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'uid': uid,
-      'name': name,
-      'registration_no': registrationNo,
-      'country': country,
-      'address': address,
-      'type': type,
-      'description': description,
-    };
-  }
-
-  BusinessProfile copyWith({
-    String? uid,
-    String? name,
-    String? registrationNo,
-    String? country,
-    String? address,
-    String? type,
-    String? description,
-  }) {
-    return BusinessProfile(
-      uid: uid ?? this.uid,
-      name: name ?? this.name,
-      registrationNo: registrationNo ?? this.registrationNo,
-      country: country ?? this.country,
-      address: address ?? this.address,
-      type: type ?? this.type,
-      description: description ?? this.description,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'BusinessProfile(uid: $uid, name: $name, registrationNo: $registrationNo, country: $country, address: $address, type: $type, description: $description)';
-  }
+  Map<String, dynamic> toMap() => {
+    'name': businessName,
+    'registration_no': registrationNo,
+    'country': country,
+    'address': address,
+    'description': description,       // ← new
+    'contact_name': contactName,
+    'contact_role': contactRole,
+    'contact_email': contactEmail,
+    'website': website,
+    'registration_doc_urls': registrationDocUrls,
+  };
 }

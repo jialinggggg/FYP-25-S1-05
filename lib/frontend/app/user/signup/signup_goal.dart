@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../backend/state/signup_state.dart';
+import '../../../../backend/signup/signup_state.dart';
 
 class SignupGoal extends StatefulWidget {
   const SignupGoal({super.key});

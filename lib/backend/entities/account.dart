@@ -28,23 +28,4 @@ class Account {
       'status': status,
     };
   }
-
-  Account copyWith({
-    String? uid,
-    String? email,
-    String? type,
-    String? status,
-  }) {
-    return Account(
-      uid: uid ?? this.uid,
-      email: email ?? this.email,
-      type: type ?? this.type,
-      status: status ?? this.status,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'Account(uid: $uid, email: $email, type: $type, status: $status)';
-  }
 }

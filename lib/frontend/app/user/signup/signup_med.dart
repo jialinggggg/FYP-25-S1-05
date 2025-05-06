@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../backend/state/signup_state.dart';
+import '../../../../backend/signup/signup_state.dart';
+import '../../../../backend/api/spoonacular_service.dart';
 
 class SignupMed extends StatefulWidget {
   const SignupMed({super.key});
@@ -10,14 +11,23 @@ class SignupMed extends StatefulWidget {
 }
 
 class SignupMedState extends State<SignupMed> {
-  final List<TextEditingController> _preExistingControllers = [];
+  // All possible pre-existing conditions
+  static const List<String> _preExistingOptions = [
+    'High blood pressure',
+    'Type 1 diabetes',
+  ];
+
+  // Pre-existing conditions selections
+  final List<String?> _preExistingSelected = [];
+
+  // Allergies controllers and suggestions
   final List<TextEditingController> _allergiesControllers = [];
+  final List<List<Map<String, dynamic>>> _allergySuggestions = [];
+
+  final SpoonacularService _spoonacularService = SpoonacularService();
 
   @override
   void dispose() {
-    for (var controller in _preExistingControllers) {
-      controller.dispose();
-    }
     for (var controller in _allergiesControllers) {
       controller.dispose();
     }
@@ -26,31 +36,57 @@ class SignupMedState extends State<SignupMed> {
 
   void _addPreExistingField() {
     setState(() {
-      _preExistingControllers.add(TextEditingController());
+      _preExistingSelected.add(null);
     });
   }
 
   void _removePreExistingField(int index) {
     setState(() {
-      _preExistingControllers.removeAt(index);
+      _preExistingSelected.removeAt(index);
     });
   }
 
   void _addAllergyField() {
     setState(() {
       _allergiesControllers.add(TextEditingController());
+      _allergySuggestions.add([]);
     });
   }
 
   void _removeAllergyField(int index) {
     setState(() {
       _allergiesControllers.removeAt(index);
+      _allergySuggestions.removeAt(index);
     });
+  }
+
+  Future<void> _onAllergyChanged(String query, int index) async {
+    if (query.isEmpty) {
+      setState(() {
+        _allergySuggestions[index] = [];
+      });
+      return;
+    }
+    try {
+      final results = await _spoonacularService.searchIngredients(query: query);
+      setState(() {
+        _allergySuggestions[index] = results;
+      });
+    } catch (e) {
+      setState(() {
+        _allergySuggestions[index] = [];
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final signupState = context.watch<SignupState>();
+
+    // Compute remaining options for new dropdowns
+    final remainingPreExisting = _preExistingOptions
+        .where((opt) => !_preExistingSelected.contains(opt))
+        .toList();
 
     return Scaffold(
       body: Padding(
@@ -97,55 +133,72 @@ class SignupMedState extends State<SignupMed> {
             ),
             const SizedBox(height: 10),
             Text(
-              "If yes, add medical conditions",
+              "If yes, select medical conditions",
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 10),
 
-            // Dynamically added pre-existing conditions fields
             Column(
               children: [
-                // Only show the text field when at least one is added
-                if (_preExistingControllers.isNotEmpty)
-                  ..._preExistingControllers.asMap().entries.map((entry) {
+                if (_preExistingSelected.isNotEmpty)
+                  ..._preExistingSelected.asMap().entries.map((entry) {
                     final index = entry.key;
-                    final controller = entry.value;
+                    final value = entry.value;
+                    // Compute options for this dropdown, including the current value’s slot
+                    final available = _preExistingOptions
+                        .where((opt) => !
+                            _preExistingSelected.contains(opt) ||
+                            opt == value)
+                        .toList();
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
                         children: [
                           Expanded(
-                            child: TextField(
-                              controller: controller,
+                            child: DropdownButtonFormField<String>(
+                              value: value,
                               decoration: InputDecoration(
-                                hintText: "Enter medical condition",
+                                hintText: "Select condition",
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
+                              items: available
+                                  .map((opt) => DropdownMenuItem(
+                                        value: opt,
+                                        child: Text(opt),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) => setState(() {
+                                _preExistingSelected[index] = val;
+                              }),
                             ),
                           ),
-                            IconButton(
-                              icon: Icon(Icons.remove_circle, color: Colors.red),
-                              onPressed: () => _removePreExistingField(index),
-                            ),
+                          IconButton(
+                            icon: Icon(Icons.remove_circle,
+                                color: Colors.red),
+                            onPressed: () => _removePreExistingField(index),
+                          ),
                         ],
                       ),
                     );
                   }),
-                TextButton(
-                  onPressed: _addPreExistingField,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add, color: Colors.green),
-                      Text(
-                        "Add Medical Condition",
-                        style: TextStyle(color: Colors.green),
-                      ),
-                    ],
+
+                // Only show "Add" if there's at least one remaining option
+                if (remainingPreExisting.isNotEmpty)
+                  TextButton(
+                    onPressed: _addPreExistingField,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.green),
+                        Text(
+                          "Add Medical Condition",
+                          style: TextStyle(color: Colors.green),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 30),
@@ -162,32 +215,65 @@ class SignupMedState extends State<SignupMed> {
             ),
             const SizedBox(height: 10),
 
-            // Dynamically added allergies fields
             Column(
               children: [
-                // Only show the text field when at least one is added
                 if (_allergiesControllers.isNotEmpty)
                   ..._allergiesControllers.asMap().entries.map((entry) {
                     final index = entry.key;
                     final controller = entry.value;
+                    final suggestions = _allergySuggestions[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: controller,
-                              decoration: InputDecoration(
-                                hintText: "Enter allergy",
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: controller,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter allergy',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  onChanged: (text) => _onAllergyChanged(text, index),
                                 ),
                               ),
-                            ),
+                              IconButton(
+                                icon: Icon(Icons.remove_circle,
+                                    color: Colors.red),
+                                onPressed: () => _removeAllergyField(index),
+                              ),
+                            ],
                           ),
-                            IconButton(
-                              icon: Icon(Icons.remove_circle, color: Colors.red),
-                              onPressed: () => _removeAllergyField(index),
+                          if (suggestions.isNotEmpty)
+                            Container(
+                              constraints: BoxConstraints(maxHeight: 150),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey.shade300),
+                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.white,
+                              ),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                itemCount: suggestions.length,
+                                itemBuilder: (_, i) {
+                                  final item = suggestions[i];
+                                  return ListTile(
+                                    leading: item['image'] != null
+                                        ? Image.network(item['image'] as String)
+                                        : null,
+                                    title: Text(item['name'] as String),
+                                    onTap: () {
+                                      setState(() {
+                                        controller.text = item['name'] as String;
+                                        _allergySuggestions[index] = [];
+                                      });
+                                    },
+                                  );
+                                },
+                              ),
                             ),
                         ],
                       ),
@@ -208,6 +294,7 @@ class SignupMedState extends State<SignupMed> {
                 ),
               ],
             ),
+
             const Spacer(),
 
             // Navigation Buttons
@@ -227,20 +314,19 @@ class SignupMedState extends State<SignupMed> {
                     ),
                   ),
                   onPressed: () {
-                    // Get all non-empty values
-                    final preExisting = _preExistingControllers
-                        .map((c) => c.text.trim())
-                        .where((text) => text.isNotEmpty)
+                    // Gather selections
+                    final preExisting = _preExistingSelected
+                        .where((e) => e != null)
+                        .cast<String>()
                         .toList();
-                    
                     final allergies = _allergiesControllers
                         .map((c) => c.text.trim())
                         .where((text) => text.isNotEmpty)
                         .toList();
 
                     // Update state
-                    signupState.setPreExisting(preExisting.isNotEmpty ? preExisting.join(',') : 'NA');
-                    signupState.setAllergies(allergies.isNotEmpty ? allergies.join(',') : 'NA');
+                    signupState.setPreExistingConditions(preExisting);
+                    signupState.setAllergyList(allergies);
 
                     // Proceed to next screen
                     Navigator.pushNamed(context, '/signup_goal');
