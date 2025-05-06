@@ -46,10 +46,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text("Scan to Pay with PayNow"),
-          content: Image.asset(
-            "assets/paynow_qr.png",
-            height: 200,
-          ),
+          content: Image.asset("assets/paynow_qr.png", height: 200),
           actions: [
             TextButton(
               onPressed: () {
@@ -72,7 +69,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _processStripePayment() async {
     if (!mounted || _isProcessing) return;
-    
+
     setState(() {
       _isProcessing = true;
       _paymentInProgress = true;
@@ -110,18 +107,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           customerId: customerId,
           customerEphemeralKeySecret: ephemeralKey,
           style: ThemeMode.system,
-          // Critical parameters for stability:
-          customFlow: false, // Let Stripe handle the entire flow
+          customFlow: false,
           allowsDelayedPaymentMethods: true,
         ),
       );
 
-      // Present payment sheet with minimal interference
       try {
         await Stripe.instance.presentPaymentSheet();
         if (mounted) await _completeOrder();
       } catch (e) {
-        // Stripe will handle its own UI errors
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Payment not completed")),
@@ -145,53 +139,74 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _completeOrder() async {
-    if (!mounted) return;
-    setState(() => _isProcessing = true);
+  if (!mounted) return;
+  setState(() => _isProcessing = true);
 
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User not authenticated")),
-        );
-        return;
-      }
-
-      final orderData = {
-        "order_id": widget.orderId,
-        "customer": user.id,
-        "date": DateTime.now().toIso8601String(),
-        "status": "Confirmed",
-        "payment": selectedPayment.name,
-        "total": calculateTotal(),
-        "delivery": "Singapore",
-        "products": _lockedCart.entries.map((e) => "${e.key} x${e.value}").join(", "),
-      };
-
-      final response = await _supabase.from('orders').insert(orderData);
-
-      if (response.error != null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Order submission failed: ${response.error!.message}")),
-        );
-        return;
-      }
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error completing order: ${e.toString()}")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
+  try {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User not authenticated")),
+      );
+      return;
     }
+
+    // Retrieve product details from Supabase to extract seller_id
+    final List<Map<String, dynamic>> productDetails = [];
+
+    for (final entry in _lockedCart.entries) {
+      final productResponse = await _supabase
+          .from('products')
+          .select('id, seller_id')
+          .eq('name', entry.key)
+          .maybeSingle();
+
+      if (productResponse != null) {
+        productDetails.add(productResponse);
+      }
+    }
+
+    if (productDetails.isEmpty) {
+      throw Exception("No valid product details found");
+    }
+
+    final sellerId = productDetails.first['seller_id'];
+
+    final orderData = {
+      "order_id": widget.orderId,
+      "customer": user.id,
+      "seller_id": sellerId,
+      "date": DateTime.now().toIso8601String(),
+      "status": "Confirmed",
+      "payment": selectedPayment.name,
+      "total": calculateTotal(),
+      "delivery": "Singapore",
+      "products": _lockedCart.entries.map((e) => "${e.key} x${e.value}").join(", "),
+    };
+
+    await _supabase.from('orders').insert(orderData);
+    print("✅ Order inserted into single orders table");
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Order confirmed!")),
+      );
+      Navigator.pop(context, true);
+    }
+
+  } catch (e) {
+    print("❌ Exception in _completeOrder: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error completing order: ${e.toString()}")),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isProcessing = false);
   }
+}
+
+
 
   Future<void> _handleCheckout() async {
     if (_isProcessing || !mounted) return;
@@ -237,7 +252,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               title: const Text("PayNow"),
               value: PaymentMethod.paynow,
               groupValue: selectedPayment,
-              onChanged: _paymentInProgress 
+              onChanged: _paymentInProgress
                   ? null
                   : (value) {
                       if (value != null && mounted) {
@@ -249,7 +264,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               title: const Text("Stripe (Pay via Credit Card)"),
               value: PaymentMethod.stripe,
               groupValue: selectedPayment,
-              onChanged: _paymentInProgress 
+              onChanged: _paymentInProgress
                   ? null
                   : (value) {
                       if (value != null && mounted) {

@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../../backend/services/product_service.dart'; // Make sure the path matches your project name
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../../../backend/services/product_service.dart';
 
 class BizProductDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -38,62 +40,102 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
     _selectedImage = widget.product["image"]?.toString();
   }
 
-  void _pickImage() {
-    // You can implement image picking later.
-  }
+  void _pickImage() async {
+    try {
+      final status = await Permission.storage.request();
+      final photosStatus = await Permission.photos.request();
 
- void _saveChanges() async {
-  int stock = int.tryParse(_stockController.text) ?? 0;
-
-  // Check if stock exceeds the limit
-  if (stock > 100) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("The stock limit reached (100 max)")),
-    );
-    return; // Exit the method to prevent updating if the stock exceeds 100
-  }
-
-  Map<String, dynamic> updatedProduct = {
-    "name": _nameController.text,
-    "description": _descriptionController.text,
-    "price": _priceController.text,
-    "category": _categoryController.text,
-    "stock": stock,
-    "status": widget.product["status"],
-    "image": _selectedImage ?? "assets/default_image.png",
-  };
-
-  try {
-    final response = await ProductService.updateProduct(
-      widget.product['id'],
-      updatedProduct,
-    );
-
-    if (response != null) {
-      widget.onUpdate(response); // Updated product sent to parent
-
-      // Check if response indicates stock was capped
-      if (response['wasCapped'] == true) {
+      if (!status.isGranted && !photosStatus.isGranted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("The stock limit reached (100 max)")),
+          const SnackBar(content: Text("Storage permission is required to select images")),
         );
+        return;
       }
 
-      if (mounted) Navigator.pop(context);
-    } else {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(child: CircularProgressIndicator()),
+        );
+
+        final imageUrl = await ProductService.uploadProductImage(
+          File(pickedFile.path),
+          'product_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+
+        if (mounted) Navigator.of(context).pop();
+
+        if (imageUrl != null) {
+          setState(() {
+            _selectedImage = imageUrl;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to upload image")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString()}")),
+        );
+      }
+    }
+  }
+
+  void _saveChanges() async {
+    int stock = int.tryParse(_stockController.text) ?? 0;
+
+    if (stock > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to update product")),
+        const SnackBar(content: Text("The stock limit reached (100 max)")),
+      );
+      return;
+    }
+
+    Map<String, dynamic> updatedProduct = {
+      "name": _nameController.text,
+      "description": _descriptionController.text,
+      "price": _priceController.text,
+      "category": _categoryController.text,
+      "stock": stock,
+      "status": widget.product["status"],
+      "image": _selectedImage ?? "assets/default_image.png",
+    };
+
+    try {
+      final response = await ProductService.updateProduct(
+        widget.product['id'],
+        updatedProduct,
+      );
+
+      if (response != null) {
+        widget.onUpdate(response);
+
+        if (response['wasCapped'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("The stock limit reached (100 max)")),
+          );
+        }
+
+        if (mounted) Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to update product")),
+        );
+      }
+    } catch (e) {
+      print('Error updating product: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
       );
     }
-  } catch (e) {
-    print('Error updating product: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ${e.toString()}')),
-    );
   }
-}
-
-
 
   Future<void> _deleteProduct() async {
     setState(() => _isDeleting = true);
@@ -102,7 +144,6 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
       await ProductService.deleteProduct(widget.product['id'], _selectedImage);
       widget.onDelete();
 
-      // Ensure the context is still valid before popping
       if (mounted) {
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -164,9 +205,20 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(12),
-                    image: _selectedImage != null && File(_selectedImage!).existsSync()
-                        ? DecorationImage(image: FileImage(File(_selectedImage!)), fit: BoxFit.cover)
-                        : const DecorationImage(image: AssetImage("assets/default_image.png"), fit: BoxFit.cover),
+                    image: _selectedImage != null
+                        ? (_selectedImage!.startsWith('http')
+                            ? DecorationImage(
+                                image: NetworkImage(_selectedImage!),
+                                fit: BoxFit.cover,
+                              )
+                            : DecorationImage(
+                                image: FileImage(File(_selectedImage!)),
+                                fit: BoxFit.cover,
+                              ))
+                        : const DecorationImage(
+                            image: AssetImage("assets/default_image.png"),
+                            fit: BoxFit.cover,
+                          ),
                   ),
                   child: const Center(child: Icon(Icons.camera_alt, color: Colors.black54, size: 30)),
                 ),

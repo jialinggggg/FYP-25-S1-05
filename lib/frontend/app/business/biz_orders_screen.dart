@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'biz_partner_dashboard.dart';
 import 'biz_products_screen.dart';
 import 'biz_profile_screen.dart';
@@ -12,17 +13,9 @@ class BizOrdersScreen extends StatefulWidget {
 }
 
 class BizOrdersScreenState extends State<BizOrdersScreen> {
-  static final List<Map<String, dynamic>> _orderHistory = [
-
-  ];
-
-  static void addNewOrder(Map<String, dynamic> order) {
-    if (!_orderHistory.any((o) => o["orderId"] == order["orderId"])) {
-      _orderHistory.insert(0, order);
-    }
-  }
-
-  List<Map<String, dynamic>> filteredOrders = [];
+  final SupabaseClient _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _orderHistory = [];
+  bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 2;
 
@@ -30,14 +23,32 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_filterOrders);
-    filteredOrders = List.from(_orderHistory);
+    _fetchOrders();
+  }
+
+  Future<void> _fetchOrders() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    final response = await _supabase
+        .from('orders')
+        .select()
+        .eq('seller_id', user.id)
+        .order('date', ascending: false);
+
+    setState(() {
+      _orderHistory = List<Map<String, dynamic>>.from(response);
+      _isLoading = false;
+    });
   }
 
   void _filterOrders() {
     setState(() {
       String query = _searchController.text.toLowerCase();
-      filteredOrders = _orderHistory.where((order) {
-        return order["orderId"].toLowerCase().contains(query);
+      _orderHistory = _orderHistory.where((order) {
+        return order["order_id"].toLowerCase().contains(query);
       }).toList();
     });
   }
@@ -65,14 +76,12 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Handle new order passed via Navigator.pushNamed or push
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final newOrder = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
 
-      if (newOrder != null && !_orderHistory.any((o) => o["orderId"] == newOrder["orderId"])) {
+      if (newOrder != null && !_orderHistory.any((o) => o["order_id"] == newOrder["order_id"])) {
         setState(() {
           _orderHistory.insert(0, newOrder);
-          filteredOrders = List.from(_orderHistory);
         });
       }
     });
@@ -103,77 +112,79 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
 
             /// 📦 Order List
             Expanded(
-              child: filteredOrders.isEmpty
-                  ? const Center(child: Text("No orders found."))
-                  : ListView.builder(
-                itemCount: filteredOrders.length,
-                itemBuilder: (context, index) {
-                  final order = filteredOrders[index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderDetailScreen(order: order),
-                        ),
-                      ).then((_) {
-                        setState(() {}); // Refresh after returning from detail screen
-                      });
-                    },
-                    child: Card(
-                      elevation: 2,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    order["orderId"],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _orderHistory.isEmpty
+                      ? const Center(child: Text("No orders found."))
+                      : ListView.builder(
+                          itemCount: _orderHistory.length,
+                          itemBuilder: (context, index) {
+                            final order = _orderHistory[index];
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => OrderDetailScreen(order: order),
+                                  ),
+                                ).then((_) {
+                                  setState(() {}); // Refresh after returning from detail screen
+                                });
+                              },
+                              child: Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              order["order_id"],
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          if (order["status"] == "Pending")
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green,
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: const Text(
+                                                "New",
+                                                style: TextStyle(color: Colors.white, fontSize: 12),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text("Customer ID: ${order["customer"]}"),
+                                      Text("Order Date: ${order["date"]}"),
+                                      Text("Product(s) Ordered: ${order["products"]}"),
+                                      Text("Order Status: ${order["status"]}"),
+                                      Text("Total Amount: \$${double.parse(order["total"].toString()).toStringAsFixed(2)}"),
+                                      Text("Payment Status: ${order["payment"]}"),
+                                      Text("Delivery Address: ${order["delivery"]}"),
+                                    ],
                                   ),
                                 ),
-                                if (order["isNew"])
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Text(
-                                      "New",
-                                      style: TextStyle(color: Colors.white, fontSize: 12),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text("Customer Name: ${order["customer"]}"),
-                            Text("Order Date: ${order["date"]}"),
-                            Text("Product(s) Ordered: ${order["products"]}"),
-                            Text("Order Status: ${order["status"]}"),
-                            Text("Total Amount: ${order["total"]}"),
-                            Text("Payment Status: ${order["payment"]}"),
-                            Text("Delivery Address: ${order["delivery"]}"),
-                          ],
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                  );
-                },
-              ),
             ),
           ],
         ),
       ),
 
-      ///Bottom Nav
+      /// Bottom Nav
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,

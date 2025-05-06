@@ -7,13 +7,11 @@ import '../recipes/recipes_screen.dart';
 import '../meal/main_log_screen.dart';
 import 'cart_screen.dart';
 import 'product_details.dart';
-import '../../business/biz_orders_screen.dart';
 import 'order_progress.dart';
 import '../../shared/order_store.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
-
   @override
   OrdersScreenState createState() => OrdersScreenState();
 }
@@ -22,17 +20,15 @@ class OrdersScreenState extends State<OrdersScreen> {
   List<Map<String, dynamic>> products = [];
   List<Map<String, dynamic>> filteredProducts = [];
   Map<String, int> cart = {};
-  bool _hasItemsInCart = false;
   bool _showCheckIcon = false;
-
-  final TextEditingController _searchController = TextEditingController();
+  final _searchController = TextEditingController();
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
-    fetchProducts();
+    _fetchProducts();
   }
 
   @override
@@ -41,163 +37,134 @@ class OrdersScreenState extends State<OrdersScreen> {
     super.dispose();
   }
 
-  Future<void> fetchProducts() async {
-    try {
-      final allProducts = await ProductService.loadAllAvailableProducts();
-      if (mounted) {
-        setState(() {
-          products = List<Map<String, dynamic>>.from(allProducts);
-          filteredProducts = List.from(products);
-        });
-      }
-    } catch (e) {
-      debugPrint("Failed to fetch products: $e");
-    }
+  Future<void> _fetchProducts() async {
+    final list = await ProductService.loadAllAvailableProducts();
+    if (!mounted) return;
+    setState(() {
+      products = list;
+      filteredProducts = List.from(list);
+    });
   }
 
   void _onSearchChanged() {
+    final q = _searchController.text.toLowerCase().trim();
     setState(() {
-      String query = _searchController.text.toLowerCase().trim();
-      if (query.isEmpty) {
-        filteredProducts = List.from(products);
-        return;
-      }
-
-      filteredProducts = products.where((product) {
-        String name = product["name"]?.toString().toLowerCase() ?? "";
-        return name.contains(query);
-      }).toList();
+      filteredProducts = q.isEmpty
+        ? List.from(products)
+        : products.where((p) {
+            return p['name']
+                    ?.toString()
+                    .toLowerCase()
+                    .contains(q) ==
+                true;
+          }).toList();
     });
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+  void _openProductDetails(Map<String, dynamic> product) {
+  if (product['stock'] > 0) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailsScreen(
+          product: product,
+          onAddToCart: _addToCart,
+          isInCart: cart.containsKey(product['name']),
+        ),
+      ),
+    ).then((_) {
+      // Always refresh products when returning from details screen
+      _fetchProducts();
     });
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("This product is out of stock!")),
+    );
+  }
+}
 
-    switch (index) {
-      case 0:
-        break;
+
+  void _addToCart(String productName) {
+    setState(() {
+      cart[productName] = (cart[productName] ?? 0) + 1;
+      _showCheckIcon = true;
+    });
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _showCheckIcon = false);
+    });
+  }
+
+  void _onItemTapped(int idx) {
+    setState(() => _selectedIndex = idx);
+    switch (idx) {
       case 1:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const RecipesScreen()),
+          MaterialPageRoute(builder: (_) => const RecipesScreen()),
         );
         break;
       case 2:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainLogScreen()),
+          MaterialPageRoute(builder: (_) => const MainLogScreen()),
         );
         break;
       case 3:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainReportDashboard()),
+          MaterialPageRoute(builder: (_) => const MainReportDashboard()),
         );
         break;
       case 4:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+          MaterialPageRoute(builder: (_) => const ProfileScreen()),
         );
         break;
     }
   }
 
-  void _openProductDetails(Map<String, dynamic> product) {
-    if (product["stock"] > 0) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProductDetailsScreen(
-            product: product,
-            onAddToCart: _addToCart,
-            isInCart: cart.containsKey(product["name"]),
-          ),
-        ),
-      ).then((_) {
-        if (mounted) setState(() {});
-      });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("This product is out of stock!")),
-      );
-    }
-  }
-
-  void _addToCart(String productName) {
-    setState(() {
-      cart[productName] = (cart[productName] ?? 0) + 1;
-      _hasItemsInCart = true;
-      _showCheckIcon = true;
-    });
-
-    Future.delayed(const Duration(seconds: 6), () {
-      if (mounted) {
-        setState(() {
-          _showCheckIcon = false;
-        });
-      }
-    });
-  }
-
   void _openCartScreen() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const CartScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const CartScreen()),
     );
-
     if (!mounted) return;
-
-    if (result != null && result is Map<String, dynamic>) {
-      if (result["order"] != null) {
-        BizOrdersScreenState.addNewOrder(result["order"]);
-        SharedOrderStore.addOrUpdateUserOrder(result["order"]);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Order placed successfully!")),
-        );
-
-        setState(() {
-          cart.clear();
-          _hasItemsInCart = false;
-        });
-      }
+    if (result is Map<String, dynamic> && result['order'] != null) {
+      SharedOrderStore.addOrUpdateUserOrder(result['order']);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Order placed successfully!")),
+      );
+      setState(() => cart.clear());
     }
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext c) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: const Text(
           "Products",
           style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 1,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.track_changes),
             tooltip: 'My Order Progress',
-            onPressed: () {
-              Navigator.push(
+            onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => UserOrdersProgressScreen()),
-              );
-            },
+                MaterialPageRoute(
+                    builder: (_) => const UserOrdersProgressScreen())),
           ),
         ],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -212,51 +179,36 @@ class OrdersScreenState extends State<OrdersScreen> {
           Expanded(
             child: filteredProducts.isEmpty
                 ? const Center(
-                    child: Text("No products found!",
-                        style: TextStyle(fontSize: 16, color: Colors.grey)),
+                    child: Text("No products found!", style: TextStyle(color: Colors.grey)),
                   )
                 : ListView.builder(
                     itemCount: filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      final product = filteredProducts[index];
+                    itemBuilder: (_, i) {
+                      final p = filteredProducts[i];
                       return GestureDetector(
-                        onTap: () => _openProductDetails(product),
+                        onTap: () => _openProductDetails(p),
                         child: Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           elevation: 3,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
                             leading: SizedBox(
-                              width: 50,
-                              height: 50,
-                              child: Image.network(
-                                product["image"]?.toString() ?? "",
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.image_not_supported),
-                              ),
+                              width: 50, height: 50,
+                              child: Image.network(p['image'] ?? '',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_,__,___) => const Icon(Icons.image_not_supported)),
                             ),
-                            title: Text(
-                              product["name"]?.toString() ?? "",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
+                            title: Text(p['name'] ?? '',
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(product["description"]?.toString() ?? "",
+                                Text(p['description'] ?? '',
                                     maxLines: 2, overflow: TextOverflow.ellipsis),
-                                Text("Price: \$${(product["price"] ?? 0).toStringAsFixed(2)}"),
-                                if (product["stock"] == 0)
-                                  const Text(
-                                    "Out of Stock",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                                Text("Price: \$${(p['price'] ?? 0).toStringAsFixed(2)}"),
+                                if (p['stock'] == 0)
+                                  const Text("Out of Stock",
+                                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                               ],
                             ),
                           ),
@@ -268,9 +220,9 @@ class OrdersScreenState extends State<OrdersScreen> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: "Orders"),
@@ -284,8 +236,8 @@ class OrdersScreenState extends State<OrdersScreen> {
         backgroundColor: Colors.green,
         onPressed: _openCartScreen,
         child: _showCheckIcon
-            ? const Icon(Icons.check_circle, color: Colors.white, size: 28)
-            : const Icon(Icons.shopping_bag, color: Colors.white, size: 28),
+            ? const Icon(Icons.check_circle, size: 28, color: Colors.white)
+            : const Icon(Icons.shopping_bag, size: 28, color: Colors.white),
       ),
     );
   }

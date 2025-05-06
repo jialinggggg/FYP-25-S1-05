@@ -106,31 +106,41 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Future<void> _submitReport(String message) async {
-    try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("You must be logged in to report.")),
-        );
-        return;
-      }
-
-      await Supabase.instance.client.from('product_report').insert({
-        'product_id': widget.product["id"],
-        'user_id': user.id,
-        'message': message,
-        'created_at': DateTime.now().toIso8601String(),
-      });
-
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Thank you for your report!")),
+        const SnackBar(content: Text("You must be logged in to report.")),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit report: $e")),
-      );
+      return;
     }
+
+    // Insert the report
+    await Supabase.instance.client.from('product_report').insert({
+      'product_id': widget.product["id"],
+      'user_id': user.id,
+      'message': message,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    // Update product status to "Reported"
+    await Supabase.instance.client.from('products').update({
+      'status': 'Reported',
+    }).eq('id', widget.product["id"]);
+
+    // Notify and close screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Thank you for your report!")),
+    ); 
+
+    if (mounted) Navigator.of(context).maybePop(); // go back to product list
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Failed to submit report: $e")),
+    );
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
