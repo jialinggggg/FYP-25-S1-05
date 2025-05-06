@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../backend/supabase/meal_entries_service.dart';
 import '../../../../services/spoonacular_api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
+import 'package:image/image.dart' as img;
+import 'package:permission_handler/permission_handler.dart';
 
 class AddFoodScreen extends StatefulWidget {
   final String mealType;
 
-  const AddFoodScreen({super.key, required this.mealType}); // Use super.key
+  const AddFoodScreen({super.key, required this.mealType});
 
   @override
   AddFoodScreenState createState() => AddFoodScreenState();
@@ -27,10 +33,127 @@ class AddFoodScreenState extends State<AddFoodScreen> {
     _fetchLoggedMeals();
   }
 
+  Future<void> _recognizeFoodFromImage() async {
+    try {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Camera permission is required')),
+          );
+        }
+        return;
+      }
+
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      final bytes = await File(pickedFile.path).readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Image file is empty');
+      }
+
+      if (bytes.lengthInBytes > 10 * 1024 * 1024) {
+        throw Exception('Image is too large (max 10MB)');
+      }
+
+      final image = img.decodeImage(bytes);
+      if (image == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      const targetWidth = 800;
+      final targetHeight = (image.height * (targetWidth / image.width)).toInt();
+
+      final resizedImage = img.copyResize(
+        image,
+        width: targetWidth,
+        height: targetHeight,
+      );
+
+      final jpgBytes = img.encodeJpg(resizedImage, quality: 85);
+      final base64Image = base64Encode(jpgBytes);
+
+      const apiKey = 'AIzaSyB_hTILl0ruoHg_-NmerTbi03D7JRvY57k';
+      const url = 'https://vision.googleapis.com/v1/images:annotate?key=$apiKey';
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "requests": [
+            {
+              "image": {"content": base64Image},
+              "features": [
+                {"type": "LABEL_DETECTION", "maxResults": 10},
+                {"type": "WEB_DETECTION", "maxResults": 5}
+              ]
+            }
+          ]
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body)['error'] ?? {};
+        throw Exception('API error: ${error['message'] ?? 'Unknown error'}');
+      }
+
+      final responseData = jsonDecode(response.body);
+      final firstResponse = responseData['responses'][0];
+
+      final labels = (firstResponse['labelAnnotations'] ?? [])
+      .map<String>((l) => l['description']?.toString() ?? '')
+      .toList();
+      
+      final webEntities = (firstResponse['webDetection']?['webEntities'] ?? [])
+      .map<String>((w) => w['description']?.toString() ?? '')
+      .toList();
+
+
+      final allResults = [...labels, ...webEntities].toSet().toList();
+
+      if (allResults.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not recognize any food in the image')),
+          );
+        }
+        return;
+      }
+
+      const foodKeywords = [
+        'food', 'fruit', 'vegetable', 'meal', 'dish', 'banana', 'apple',
+        'rice', 'pasta', 'bread', 'meat', 'chicken', 'fish'
+      ];
+
+      String bestFoodMatch = allResults.firstWhere(
+        (item) => foodKeywords.any((keyword) => item.toLowerCase().contains(keyword)),
+        orElse: () => allResults.first,
+      );
+
+      _searchController.text = bestFoodMatch;
+      await _searchMeals(bestFoodMatch);
+    } catch (e) {
+      print('Food recognition error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
   Future<void> _fetchLoggedMeals() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return; // Exit if user is not logged in
+      if (userId == null) return;
 
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
@@ -85,10 +208,8 @@ class AddFoodScreenState extends State<AddFoodScreen> {
   void _removeMeal(int index, bool isLoggedMeal) {
     setState(() {
       if (isLoggedMeal) {
-        // Mark logged meal for deletion
         _loggedMeals[index]['markedForDeletion'] = true;
       } else {
-        // Remove unsaved meal
         _selectedMeals.removeAt(index - _loggedMeals.length);
       }
     });
@@ -97,25 +218,23 @@ class AddFoodScreenState extends State<AddFoodScreen> {
   Future<void> _saveMeals() async {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return; // Exit if user is not logged in
+      if (userId == null) return;
 
-      // Delete marked meals from the database
       for (var meal in _loggedMeals) {
         if (meal['markedForDeletion'] == true) {
           await _mealEntriesService.deleteMealEntry(meal['meal_id']);
         }
       }
 
-      // Add new meals to the database
       for (var meal in _selectedMeals) {
         await _mealEntriesService.insertMealEntry(
           spoonacularId: meal['id'],
           uid: userId,
           name: meal['title'],
-          calories: _getCalories(meal), // Use _getCalories for int
-          carbs: _getNutrientValue(meal, 'Carbohydrates'), // Already double
-          protein: _getNutrientValue(meal, 'Protein'), // Already double
-          fats: _getNutrientValue(meal, 'Fat'), // Already double
+          calories: _getCalories(meal),
+          carbs: _getNutrientValue(meal, 'Carbohydrates'),
+          protein: _getNutrientValue(meal, 'Protein'),
+          fats: _getNutrientValue(meal, 'Fat'),
           type: widget.mealType,
         );
       }
@@ -124,8 +243,6 @@ class AddFoodScreenState extends State<AddFoodScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Meals saved successfully!')),
         );
-
-        // Navigate back to MainLogScreen with updated data
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -137,24 +254,22 @@ class AddFoodScreenState extends State<AddFoodScreen> {
     }
   }
 
-  // Helper method to get calories as int
   int _getCalories(Map<String, dynamic> meal) {
     final nutrients = meal['nutrition']['nutrients'] as List<dynamic>;
     final nutrient = nutrients.firstWhere(
       (n) => n['name'] == 'Calories',
-      orElse: () => {'amount': 0.0}, // Default value if nutrient is not found
+      orElse: () => {'amount': 0.0},
     );
-    return nutrient['amount'].toInt(); // Convert to int
+    return nutrient['amount'].toInt();
   }
 
-  // Helper method to get other nutrients as double
   double _getNutrientValue(Map<String, dynamic> meal, String nutrientName) {
     final nutrients = meal['nutrition']['nutrients'] as List<dynamic>;
     final nutrient = nutrients.firstWhere(
       (n) => n['name'] == nutrientName,
-      orElse: () => {'amount': 0.0}, // Default value if nutrient is not found
+      orElse: () => {'amount': 0.0},
     );
-    return nutrient['amount'] as double; // Return as double
+    return nutrient['amount'] as double;
   }
 
   @override
@@ -167,18 +282,15 @@ class AddFoodScreenState extends State<AddFoodScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logged Meals Section (1/3 of the screen)
           Container(
             height: MediaQuery.of(context).size.height / 3,
-            color: Colors.grey[200], // Light grey background
+            color: Colors.grey[200],
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,9 +314,8 @@ class AddFoodScreenState extends State<AddFoodScreen> {
                             ? _loggedMeals[index]
                             : _selectedMeals[index - _loggedMeals.length];
 
-                        // Hide meals marked for deletion
                         if (isLoggedMeal && meal['markedForDeletion'] == true) {
-                          return const SizedBox.shrink(); // Hide the meal
+                          return const SizedBox.shrink();
                         }
 
                         return ListTile(
@@ -226,29 +337,37 @@ class AddFoodScreenState extends State<AddFoodScreen> {
               ],
             ),
           ),
-
-          // Search Bar and Results Section
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Search Bar
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search for meals...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search for meals...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onChanged: _searchMeals,
+                        ),
                       ),
-                    ),
-                    onChanged: _searchMeals,
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text("Recognition"),
+                        onPressed: _recognizeFoodFromImage,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
-
-                  // Search Results
                   if (_searchResults.isNotEmpty)
                     Expanded(
                       child: ListView.builder(
@@ -277,7 +396,6 @@ class AddFoodScreenState extends State<AddFoodScreen> {
           ),
         ],
       ),
-      // Save Button at the bottom
       bottomNavigationBar: Container(
         color: Colors.green,
         height: 60,

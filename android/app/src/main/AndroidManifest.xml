@@ -8,12 +8,14 @@
 <!-- For Android 13+ -->
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+<uses-permission android:name="android.permission.INTERNET" />
+
 
     <application
         android:label="nutri_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:theme="@style/NormalTheme">
+        android:theme="@style/AppTheme">
         
         <activity
             android:name=".MainActivity"
