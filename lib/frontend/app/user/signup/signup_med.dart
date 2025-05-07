@@ -108,7 +108,7 @@ class SignupMedState extends State<SignupMed> {
               children: List.generate(
                 7,
                 (index) => Container(
-                  width: 40,
+                  width: 47,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(

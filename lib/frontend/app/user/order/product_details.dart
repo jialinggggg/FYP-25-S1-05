@@ -125,7 +125,7 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
       await Supabase.instance.client.from('products').update({
         'status': 'Reported',
       }).eq('id', widget.product["id"]);
-
+      if (mounted){}
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Thank you for your report!")),
       );

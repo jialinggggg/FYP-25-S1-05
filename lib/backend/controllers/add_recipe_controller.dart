@@ -175,15 +175,23 @@ class AddRecipeController with ChangeNotifier {
       String sourceName = '';  // Variable to hold the source name
 
       // Fetch the source_name based on the source_type
-      if (sourceType == 'business' || sourceType == 'nutritionist') {
+      if (sourceType == 'business') {
         final businessProfileResponse = await _supabase
             .from('business_profiles')
             .select('name')
             .eq('uid', currentUser.id)
             .single();
-        
+
         sourceName = businessProfileResponse['name'];
-      } else if (sourceType == 'user') {
+      }else if (sourceType == 'nutritionist'){
+        final nutriProfileResponse = await _supabase
+            .from('nutritionist_profiles')
+            .select('full_name')
+            .eq('uid', currentUser.id)
+            .single();
+
+        sourceName = nutriProfileResponse['full_name'];
+      }else if (sourceType == 'user') {
         final userProfileResponse = await _supabase
             .from('user_profiles')
             .select('name')
@@ -194,7 +202,6 @@ class AddRecipeController with ChangeNotifier {
       } else {
         throw Exception('Invalid source type');
       }
-
       // Insert the recipe into the 'recipes' table with the source_name
       final response = await _supabase.from('recipes').insert({
         'uid': currentUser.id,

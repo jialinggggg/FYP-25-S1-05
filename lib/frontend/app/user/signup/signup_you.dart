@@ -35,11 +35,13 @@ class SignupYouState extends State<SignupYou> {
       final age = now.year - date.year - ((now.month > date.month || (now.month == date.month && now.day >= date.day)) ? 0 : 1);
       
       if (age < 18) {
-        _showAgeWarningDialog(context);
+        if (context.mounted) _showAgeWarningDialog(context);
       } else {
-        final signupState = context.read<SignupState>();
-        signupState.setBirthDate(date);
-        setState(() => _birthDateError = null);
+        if (context.mounted){
+          final signupState = context.read<SignupState>();
+          signupState.setBirthDate(date);
+          setState(() => _birthDateError = null);
+        }
       }
     }
   }
@@ -85,7 +87,7 @@ class SignupYouState extends State<SignupYou> {
               children: List.generate(
                 7,
                 (index) => Container(
-                  width: 40,
+                  width: 47,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(

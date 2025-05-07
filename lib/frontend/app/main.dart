@@ -31,7 +31,12 @@ import 'user/profile/edit_goals_screen.dart';
 import 'user/profile/edit_med.dart';
 import 'user/recipes/add_recipe_screen.dart';
 import 'user/recipes/main_recipe_screen.dart';
-import 'business/signup/signup_biz_contact.dart';
+import 'business/signup_biz_contact.dart';
+import 'business/biz_profile_screen.dart';
+import 'business/biz_products_screen.dart';
+import 'business/biz_orders_screen.dart';
+import 'shared/biz_main_dashboard.dart';
+import 'nutritionist/profile_nutri_screen.dart';
 
 import 'package:nutri_app/backend/controllers/view_daily_nutri_info_controller.dart';
 import 'package:nutri_app/backend/controllers/log_meal_controller.dart';
@@ -45,9 +50,11 @@ import 'package:nutri_app/backend/controllers/recipe_list_controller.dart';
 import 'package:nutri_app/backend/controllers/biz_recipe_list_controller.dart';
 import 'package:nutri_app/backend/controllers/recipe_search_controller.dart';
 import 'package:nutri_app/backend/controllers/fetch_user_profile_info_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_nutri_profile_controller.dart';
 import 'package:nutri_app/backend/controllers/biz_signup_controller.dart';
 import 'package:nutri_app/backend/controllers/nutritionist_signup_controller.dart';
 import 'package:nutri_app/backend/controllers/user_signup_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_biz_profile_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -103,6 +110,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AddRecipeController(supabase, spoonacularService)),
         ChangeNotifierProvider(create: (_) => BusinessRecipeListController(supabase)),
         ChangeNotifierProvider(create: (_) => FetchUserProfileInfoController(supabase)),
+        ChangeNotifierProvider(create: (_) => FetchNutritionistProfileInfoController(supabase)),
+        ChangeNotifierProvider(create: (_) => FetchBusinessProfileInfoController(supabase)),
         
 
         // Services
@@ -140,6 +149,10 @@ class MyApp extends StatelessWidget {
           '/signup_target': (context) => const SignupTarget(),
           '/user_signup_detail': (context) => const SignupDetail(type: "user"),
           '/signup_result': (context) => const SignupResult(type: "user"),
+          '/biz_signup_result': (context) => const SignupResult(type: "business"),
+          '/signup_biz_contact': (context) => const SignupBizContactScreen(),
+          '/biz_signup_detail': (context) => const SignupDetail(type: "business"),
+          '/nutri_signup_detail': (context) => const SignupDetail(type: "nutritionist"),
 
           // Main feature routes
           '/profile': (context) => const ProfileScreen(),
@@ -151,10 +164,13 @@ class MyApp extends StatelessWidget {
           '/edit_med': (context) => EditMedicalHistScreen(onUpdate: () {}),
           '/add_recipe': (context) => const AddRecipeScreen(),
           '/main_recipes': (context) => const MainRecipeScreen(),
-          '/signup_biz_contact': (context) => const SignupBizContactScreen(),
-          '/biz_signup_detail': (context) => const SignupDetail(type: "business"),
-          '/nutri_signup_detail': (context) => const SignupDetail(type: "nutritionist"),
-          '/biz_signup_result': (context) => const SignupResult(type: "business"),
+
+          // business
+          '/biz_recipes': (context) => const BizPartnerDashboard(),
+          '/biz_products':(context) => const BizProductsScreen(),
+          '/biz_orders': (context) => const BizOrdersScreen(),
+          '/biz_profile': (context) => const BusinessProfileScreen(),
+          '/nutri_profile': (context) => const NutritionistProfileScreen(),
           
         },
       ),

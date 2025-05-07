@@ -29,6 +29,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     'Dessert', 'Appetizer', 'Main Course', 'Side Dish'
   ];
 
+  bool _imageError = false;
   final Map<int, bool> _expandedIngredients = {};
   final Map<int, bool> _showSuggestions = {};
   final Map<int, bool> _editingNutrition = {};
@@ -53,7 +54,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     _titleController.dispose();
     _servingsController.dispose();
     _readyInController.dispose();
-    _ingredientNameControllers.values.forEach((controller) => controller.dispose());
+    for (final controller in _ingredientNameControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -114,7 +117,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     });
   }
 
-  Widget _buildImageSection() {
+   Widget _buildImageSection() {
     final controller = Provider.of<AddRecipeController>(context);
 
     return Column(
@@ -143,6 +146,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 : _buildPlaceholderImage(),
           ),
         ),
+        // show error text if image is still null when flagged
+        if (_imageError && controller.image == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Please upload a recipe image',
+              style: TextStyle(color: Colors.red[700], fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -985,8 +997,21 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   void _saveRecipe(BuildContext context) {
+    final controller = Provider.of<AddRecipeController>(context, listen: false);
+
+    // 1) check image first
+    if (controller.image == null) {
+      setState(() {
+        _imageError = true;
+      });
+      return;
+    } else {
+      setState(() {
+        _imageError = false;
+      });
+    }
+
     if (_formKey.currentState?.validate() ?? false) {
-      final controller = Provider.of<AddRecipeController>(context, listen: false);
       controller.setServings(int.tryParse(_servingsController.text) ?? 0);
       controller.setReadyInMinutes(int.tryParse(_readyInController.text) ?? 0);
       controller.saveRecipe();
@@ -1069,8 +1094,9 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     if (controller.recipe != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pop(context, controller.recipe);
+        final saved = controller.recipe!;
         controller.clearState();
+        Navigator.pop(context, saved);
       });
     }
 

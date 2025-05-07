@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../backend/signup/biz_signup_state.dart';
-import '../../../../backend/signup/input_validator.dart';
+import '../../../backend/signup/biz_signup_state.dart';
+import '../../../backend/signup/input_validator.dart';
 
 class SignupBizContactScreen extends StatefulWidget {
-  const SignupBizContactScreen({Key? key}) : super(key: key);
+  const SignupBizContactScreen({super.key});
 
   @override
-  _SignupBizContactScreenState createState() => _SignupBizContactScreenState();
+  SignupBizContactScreenState createState() => SignupBizContactScreenState();
 }
 
-class _SignupBizContactScreenState extends State<SignupBizContactScreen> {
+class SignupBizContactScreenState extends State<SignupBizContactScreen> {
   final _contactNameController  = TextEditingController();
   final _contactRoleController  = TextEditingController();
   final _contactEmailController = TextEditingController();
@@ -60,14 +60,13 @@ class _SignupBizContactScreenState extends State<SignupBizContactScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
         child: SingleChildScrollView(
           physics: BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Center(
                 child: Text(
                   "Business Contact",
@@ -76,11 +75,12 @@ class _SignupBizContactScreenState extends State<SignupBizContactScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Progress (step 2 of 3)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(3, (i) => Container(
-                  width: 40, height: 5, margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: 116,
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
                     color: i == 1 ? Colors.green : Colors.black,
                     borderRadius: BorderRadius.circular(2),
@@ -93,9 +93,8 @@ class _SignupBizContactScreenState extends State<SignupBizContactScreen> {
                 "Who should we contact?",
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 15),
 
-              // Contact fields
               _buildTextField(
                 controller: _contactNameController,
                 label: "Contact Person Name",
@@ -115,32 +114,32 @@ class _SignupBizContactScreenState extends State<SignupBizContactScreen> {
                 keyboardType: TextInputType.emailAddress,
                 errorText: _contactEmailError,
               ),
-
-              const SizedBox(),
-
-              // Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, size: 30),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  ElevatedButton(
-                    onPressed: _validateAndNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(horizontal: 135, vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                    ),
-                    child: Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 100), // space above bottom navigation
             ],
           ),
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              onPressed: _validateAndNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 135, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(40),
+                ),
+              ),
+              child: Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+          ],
         ),
       ),
     );

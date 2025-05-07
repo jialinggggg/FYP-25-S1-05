@@ -1,7 +1,7 @@
 // lib/ui/signup/signup_type.dart
 import 'package:flutter/material.dart';
-import '../business/signup/signup_biz_profile.dart';
-import '../nutritionist/signup_nutritionist_screen.dart';  // ← new import
+import '../business/signup_biz_profile.dart';
+import '../nutritionist/signup_nutri_screen.dart';  // ← new import
 import '../../../backend/signup/signup_state.dart';
 import 'package:provider/provider.dart';
 

@@ -97,8 +97,10 @@ class _MainLogScreenState extends State<MainLogScreen> {
           .read<LogDailyWeightController>()
           .logWeightForDate(uid, w, _selectedDate);
 
+      if (mounted){
       await context.read<ViewEncouragementController>().fetchWeightEncouragement(uid);
-
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Weight saved!'), backgroundColor: Colors.green),

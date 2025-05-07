@@ -6,7 +6,6 @@ import '../../../../backend/controllers/fetch_user_profile_info_controller.dart'
 import 'edit_profile_screen.dart';
 import 'edit_goals_screen.dart';
 import 'edit_med.dart';
-import 'edit_account_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -95,7 +94,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: "Account Details",
                   icon: Icons.account_circle_outlined,
                   iconColor: Colors.green,
-                  onEdit: () => _navigateToEditAccount(context, controller),
                   children: [
                     const SizedBox(height: 12),
                     _buildInfoRow("Email", account.email),
@@ -196,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required IconData icon,
     Color? iconColor,
-    required VoidCallback onEdit,
+    VoidCallback? onEdit,
     required List<Widget> children,
   }) {
     final theme = Theme.of(context);
@@ -207,7 +205,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withAlpha(20),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -216,13 +218,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(children: [
             Icon(icon, size: 22, color: iconColor ?? theme.primaryColor),
             const SizedBox(width: 8),
-            Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-            const Spacer(),
-            TextButton(
-              onPressed: onEdit,
-              style: TextButton.styleFrom(foregroundColor: Colors.green),
-              child: const Text("Edit"),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
+            const Spacer(),
+            if (onEdit != null)
+              TextButton(
+                onPressed: onEdit,
+                style: TextButton.styleFrom(foregroundColor: Colors.green),
+                child: const Text('Edit'),
+              ),
           ]),
           ...children,
         ],
@@ -256,16 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]),
     );
   }
-
-  void _navigateToEditAccount(BuildContext context, FetchUserProfileInfoController c) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EditAccountScreen(onAccountUpdated: () => _refreshProfile(c),),
-      ),
-    );
-  }
-
 
   void _navigateToEditProfile(BuildContext context, FetchUserProfileInfoController c) {
     Navigator.push(
@@ -302,9 +298,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleLogout(BuildContext context, FetchUserProfileInfoController c) async {
     try {
       await c.logout();
-      if (mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+      if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
     }
   }
 

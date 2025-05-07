@@ -124,9 +124,11 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
         await _controller.updateRecipeImage(widget.recipeId, image);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick image: ${e.toString()}')),
-      );
+      if (mounted){
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to pick image: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -376,12 +378,16 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
                             if (_formKey.currentState!.validate()) {
                               try {
                                 final updatedRecipe = await controller.updateRecipe();
-                                Navigator.of(context).pop<Recipes>(updatedRecipe);
+                                if (context.mounted){
+                                  Navigator.of(context).pop<Recipes>(updatedRecipe);
+                                }
                               } catch (e) {
                                 // show error in-place if something goes wrong
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to save changes: $e')),
-                                );
+                                if (context.mounted){
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed to save changes: $e')),
+                                  );
+                                }
                               }
                             }
                           },
@@ -922,8 +928,10 @@ class _EditRecipeScreenState extends State<EditRecipeScreen> {
   void _removeInstruction(int index) {
     final instr = _controller.analyzedInstructions.first;
     final steps = List<InstructionStep>.from(instr.steps)..removeAt(index);
-    for (var i = index; i < steps.length; i++) steps[i] = steps[i].copyWith(number: i+1);
-    _controller.setAnalyzedInstructions([instr.copyWith(steps: steps)]);
+    for (var i = index; i < steps.length; i++) {
+      steps[i] = steps[i].copyWith(number: i+1);
+      _controller.setAnalyzedInstructions([instr.copyWith(steps: steps)]);
+    }
   }
 
   void _showAddTagDialog({required BuildContext context, required String title, required List<String> options, required Function(String) onAdd}) {

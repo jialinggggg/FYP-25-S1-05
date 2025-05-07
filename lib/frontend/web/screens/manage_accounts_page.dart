@@ -1,3 +1,5 @@
+
+/*
 import 'package:flutter/material.dart';
 import 'profile_page.dart'; // Import the ProfilePage
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -256,3 +258,4 @@ class ManageAccountsPageState extends State<ManageAccountsPage> with SingleTicke
           );
   }
 }
+*/

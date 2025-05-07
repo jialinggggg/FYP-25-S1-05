@@ -11,7 +11,6 @@ import '../../../backend/entities/nutritionist_profile.dart';
 import '../../../backend/signup/signup_state.dart';
 import '../../../backend/signup/biz_signup_state.dart';
 import '../../../backend/signup/nutri_signup_state.dart';
-import '../../../backend/signup/input_validation_service.dart';
 import '../../../backend/signup/input_validator.dart';
 import '../../../utils/dialog_utils.dart';
 
@@ -27,7 +26,6 @@ class SignupDetail extends StatefulWidget {
 class SignupDetailState extends State<SignupDetail> {
   final _emailController    = TextEditingController();
   final _passwordController = TextEditingController();
-  final _validationService  = InputValidationService();
 
   bool _isLoading    = false;
   bool _hasMinLength = false;
@@ -126,6 +124,51 @@ class SignupDetailState extends State<SignupDetail> {
     );
   }
 
+  Widget _buildProgressBar() {
+    int generate;
+    int activeIndex;
+    double barWidth;
+
+    switch (widget.type) {
+      case 'user':
+        generate = 7;
+        activeIndex = 6;
+        barWidth = 47;
+        break;
+      case 'business':
+        generate = 3;
+        activeIndex = 2;
+        barWidth = 117;
+        break;
+      case 'nutritionist':
+        generate = 2;
+        activeIndex = 1;
+        barWidth = 175;
+        break;
+      default:
+        generate = 7;
+        activeIndex = 0;
+        barWidth = 47;
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        generate,
+        (index) => Container(
+          width: barWidth,
+          height: 5,
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          decoration: BoxDecoration(
+            color: index == activeIndex ? Colors.green : Colors.black,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     // Ensure valid signup type
@@ -167,18 +210,10 @@ class SignupDetailState extends State<SignupDetail> {
             ),
             const SizedBox(height: 20),
 
-            // Progress indicator (step 7 of 7)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(7, (i) => Container(
-                width: 40, height: 5, margin: const EdgeInsets.symmetric(horizontal: 3),
-                decoration: BoxDecoration(
-                  color: i == 6 ? Colors.green : Colors.black,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              )),
-            ),
+            // Progress indicator
+            _buildProgressBar(),
             const SizedBox(height: 30),
+
 
             // Email field
             Text("Email Address", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -268,11 +303,9 @@ class SignupDetailState extends State<SignupDetail> {
                                     goals: signupState.goals,
                                   );
                                   // Navigate to user-specific result
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/user_signup_detail',
-                                    (route) => false,
-                                  );
+                                  if (context.mounted){
+                                    Navigator.pushNamedAndRemoveUntil(context, '/signup_result',(route) => false,);
+                                  }
                                   break;
 
                                 case 'business':
@@ -295,11 +328,9 @@ class SignupDetailState extends State<SignupDetail> {
                                     registrationDocuments: bizState.registrationDocs,
                                   );
                                   // Navigate to business/nutritionist result
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/biz_signup_result',
-                                    (route) => true,
-                                  );
+                                  if (context.mounted){
+                                    Navigator.pushNamedAndRemoveUntil(context, '/biz_signup_result',(route) => false,);
+                                  }
                                   break;
 
                                 case 'nutritionist':
@@ -321,11 +352,9 @@ class SignupDetailState extends State<SignupDetail> {
                                     licenseScans: nutriState.licenseScans,
                                   );
                                   // Navigate to business/nutritionist result
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/biz_signup_result',
-                                    (route) => true,
-                                  );
+                                  if (context.mounted){
+                                    Navigator.pushNamedAndRemoveUntil(context, '/biz_signup_result',(route) => false,);
+                                  }
                                   break;
 
                                 default:
@@ -336,10 +365,12 @@ class SignupDetailState extends State<SignupDetail> {
                               if (e.toString().contains('already registered')) {
                                 await _showEmailExistsDialog();
                               } else {
-                                DialogUtils.showErrorDialog(
-                                  context: context,
-                                  message: 'Registration failed: $e',
-                                );
+                                if (context.mounted){
+                                  DialogUtils.showErrorDialog(
+                                    context: context,
+                                    message: 'Registration failed: $e',
+                                  );
+                                }
                               }
                             } finally {
                               if (mounted) setState(() => _isLoading = false);

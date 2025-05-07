@@ -601,23 +601,27 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
                                   rating: _userRating.round(),
                                   comment: _reviewController.text,
                                 );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Thanks for your review!'),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                if (context.mounted){
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Thanks for your review!'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
                                 _reviewController.clear();
                                 setState(() => _userRating = 0);
                               } catch (e) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error submitting review: ${e.toString()}'),
-                                    behavior: SnackBarBehavior.floating,
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                                if (context.mounted){
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error submitting review: ${e.toString()}'),
+                                      behavior: SnackBarBehavior.floating,
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               }
                             },
                             icon: const Icon(Icons.send, color: Colors.white),
@@ -836,9 +840,11 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
             try {
               await controller.toggleFavourite();
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ${e.toString()}')),
-              );
+              if (context.mounted){
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${e.toString()}')),
+                );
+              }
             }
           },
           child: Row(

@@ -249,14 +249,16 @@ class _ReportRecipeScreenState extends State<ReportRecipeScreen> {
                     if (_formKey.currentState!.validate()) {
                       final success = await controller.submitReport(widget.recipe);
                       if (success && mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Report submitted successfully!'),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+                        if (context.mounted){
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Report submitted successfully!'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
                       }
                     }
                   },

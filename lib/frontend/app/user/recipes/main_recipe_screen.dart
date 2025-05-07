@@ -725,7 +725,22 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.add, color: Colors.green),
-              onPressed: () => Navigator.pushNamed(context, '/add_recipe'),
+              onPressed: () async {
+                final result = await Navigator.pushNamed(context, '/add_recipe');
+                if (result is Recipes) {
+                  // 1) mark “My Recipes” as active
+                  _filterController.setFilter(RecipeFilterType.custom, 'My Recipes');
+                  
+                  // 2) show loading UI
+                  setState(() => _isLoading = true);
+                  
+                  // 3) fetch only my custom recipes
+                  await _filterController.applyFilter(RecipeFilterType.custom);
+                  
+                  // 4) hide loading
+                  setState(() => _isLoading = false);
+                }
+              },
             ),
           ],
         ),

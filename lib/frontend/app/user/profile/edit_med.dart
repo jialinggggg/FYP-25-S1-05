@@ -8,8 +8,7 @@ import '../../../../backend/api/spoonacular_service.dart';
 
 class EditMedicalHistScreen extends StatelessWidget {
   final VoidCallback onUpdate;
-  const EditMedicalHistScreen({Key? key, required this.onUpdate})
-      : super(key: key);
+  const EditMedicalHistScreen({super.key, required this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
@@ -26,8 +25,7 @@ class EditMedicalHistScreen extends StatelessWidget {
 class _EditMedicalHistForm extends StatefulWidget {
   final String uid;
   final VoidCallback onUpdate;
-  const _EditMedicalHistForm({Key? key, required this.uid, required this.onUpdate})
-      : super(key: key);
+  const _EditMedicalHistForm({required this.uid, required this.onUpdate});
 
   @override
   __EditMedicalHistFormState createState() => __EditMedicalHistFormState();
@@ -67,9 +65,11 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
       ..clear()
       ..addAll(_ctrl.preExistingConditions);
 
-    for (var c in _allergyCtrls) c.dispose();
-    _allergyCtrls.clear();
-    _allergySuggestions.clear();
+    for (var c in _allergyCtrls){
+      c.dispose();
+      _allergyCtrls.clear();
+      _allergySuggestions.clear();
+    }
 
     for (var allergy in _ctrl.allergies) {
       _allergyCtrls.add(TextEditingController(text: allergy));
@@ -182,7 +182,7 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                     if (_preExistingOptions
                         .where((opt) => !_preSelected.contains(opt))
                         .isNotEmpty)
@@ -275,7 +275,7 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                     TextButton(
                       onPressed: _addAllergyField,
                       child: Row(
@@ -305,7 +305,7 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
                                   allergiesList: alls,
                                 );
                                 widget.onUpdate();
-                                Navigator.pop(context);
+                                if (context.mounted) Navigator.pop(context);
                               }
                             },
                       style: ElevatedButton.styleFrom(

@@ -6,7 +6,7 @@ import '../../../../backend/entities/account.dart';
 import '../../../utils/dialog_utils.dart';
 import '../../../utils/input_validator.dart';
 import '../user/meal/main_log_screen.dart';
-import '../business/biz_partner_dashboard.dart';
+import 'biz_main_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,10 +60,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      DialogUtils.showErrorDialog(
-        context: context,
-        message: 'Login failed: ${e.toString()}',
-      );
+      if (mounted){
+        DialogUtils.showErrorDialog(
+          context: context,
+          message: 'Login failed: ${e.toString()}',
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

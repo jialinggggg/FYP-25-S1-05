@@ -9,8 +9,7 @@ import '../../../../backend/controllers/edit_account_controller.dart';
 
 class EditAccountScreen extends StatelessWidget {
   final VoidCallback onAccountUpdated;
-  const EditAccountScreen({Key? key, required this.onAccountUpdated})
-      : super(key: key);
+  const EditAccountScreen({super.key, required this.onAccountUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +24,7 @@ class EditAccountScreen extends StatelessWidget {
 
 class _EditAccountForm extends StatefulWidget {
   final VoidCallback onAccountUpdated;
-  const _EditAccountForm({Key? key, required this.onAccountUpdated})
-      : super(key: key);
+  const _EditAccountForm({required this.onAccountUpdated});
 
   @override
   State<_EditAccountForm> createState() => _EditAccountFormState();
@@ -151,11 +149,13 @@ class _EditAccountFormState extends State<_EditAccountForm> {
                                   try {
                                     await c.updateAccount();
                                     widget.onAccountUpdated();
-                                    Navigator.pop(context);
+                                    if (context.mounted) Navigator.pop(context);
                                   } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(e.toString())),
-                                    );
+                                    if (context.mounted){
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())),
+                                      );
+                                    }
                                   }
                                 }
                               },

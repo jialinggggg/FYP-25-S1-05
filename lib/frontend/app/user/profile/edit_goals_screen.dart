@@ -9,7 +9,7 @@ import '../../../../utils/widget_utils.dart';
 
 class EditGoalsScreen extends StatelessWidget {
   final VoidCallback onUpdate;
-  const EditGoalsScreen({Key? key, required this.onUpdate}) : super(key: key);
+  const EditGoalsScreen({super.key, required this.onUpdate});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,7 @@ class EditGoalsScreen extends StatelessWidget {
 
 class _EditGoalsForm extends StatefulWidget {
   final VoidCallback onUpdate;
-  const _EditGoalsForm({Key? key, required this.onUpdate}) : super(key: key);
+  const _EditGoalsForm({required this.onUpdate});
 
   @override
   State<_EditGoalsForm> createState() => _EditGoalsFormState();
@@ -318,7 +318,7 @@ class _EditGoalsFormState extends State<_EditGoalsForm> {
                               if (_formKey.currentState!.validate()) {
                                 c.updateGoals().then((_) {
                                   widget.onUpdate();
-                                  Navigator.pop(context);
+                                  if (context.mounted) Navigator.pop(context);
                                 });
                               }
                             },

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../../backend/entities/recipes.dart';
 import '../../../../backend/entities/nutrition.dart';
 import '../../../../backend/controllers/biz_recipe_list_controller.dart';
 import '../../../../backend/controllers/recipe_list_controller.dart';
 import '../user/recipes/view_recipe_detail_screen.dart';
-import 'biz_profile_screen.dart';
-import 'biz_products_screen.dart';
-import 'biz_orders_screen.dart';
+
 
 class BizPartnerDashboard extends StatefulWidget {
   const BizPartnerDashboard({super.key});
@@ -20,42 +20,36 @@ class _BizPartnerDashboardState extends State<BizPartnerDashboard> {
   bool _isInitializing = true;
   int _selectedIndex = 0;
   String _searchQuery = '';
+  String? _userType; // 'business' or 'nutritionist'
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final bizCtrl = context.read<BusinessRecipeListController>();
-      bizCtrl.loadUserRecipes().then((_) {
-        if (mounted) setState(() => _isInitializing = false);
-      });
-    });
+    _loadUserTypeAndData();
   }
 
-  void _onItemTapped(int index) {
-    if (index == _selectedIndex) return;
-    setState(() => _selectedIndex = index);
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const BizProductsScreen()),
-        );
-        break;
-      case 2:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const BizOrdersScreen()),
-        );
-        break;
-      case 3:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const BizProfileScreen()),
-        );
-        break;
+  Future<void> _loadUserTypeAndData() async {
+    final client = Supabase.instance.client;
+    final userId = client.auth.currentUser?.id;
+    if (userId != null) {
+      // load account type
+      final acc = await client
+          .from('accounts')
+          .select('type')
+          .eq('uid', userId)
+          .single();
+      setState(() {
+        _userType = (acc)['type'] as String;
+      });
+
+      // load business recipes
+      if (mounted){
+        final bizCtrl = context.read<BusinessRecipeListController>();
+        await bizCtrl.loadUserRecipes();
+      }
+    }
+    if (mounted) {
+      setState(() => _isInitializing = false);
     }
   }
 
@@ -74,7 +68,7 @@ class _BizPartnerDashboardState extends State<BizPartnerDashboard> {
               ),
             );
             if (!mounted) return;
-            if (updated != null) {
+            if (updated != null && context.mounted) {
               final bizCtrl = context.read<BusinessRecipeListController>();
               bizCtrl.loadUserRecipes();
             }
@@ -208,7 +202,13 @@ class _BizPartnerDashboardState extends State<BizPartnerDashboard> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add, color: Colors.green),
-            onPressed: () => Navigator.pushNamed(context, '/add_recipe'),
+            onPressed: () async {
+              final result = await Navigator.pushNamed(context, '/add_recipe');
+              if (result is Recipes && context.mounted) {
+                // we just created/updated one—refresh the biz list
+                context.read<BusinessRecipeListController>().loadUserRecipes();
+              }
+            },
           ),
         ],
         bottom: PreferredSize(
@@ -224,7 +224,7 @@ class _BizPartnerDashboardState extends State<BizPartnerDashboard> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
-              ),
+                ),
               ),
               onChanged: (value) => setState(() => _searchQuery = value),
             ),
@@ -254,20 +254,45 @@ class _BizPartnerDashboardState extends State<BizPartnerDashboard> {
           );
         },
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
-          BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Products'),
-          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Orders'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
+
+  /// Picks the right tabs based on whether this is a business or nutritionist user
+  Widget _buildBottomNavBar(BuildContext context) {
+    final isBiz = _userType == 'business';
+    // Choose nav items based on account type
+    final items = isBiz
+        ? const [
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+            BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Products'),
+            BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Orders'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ]
+        : const [
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ];
+
+    // Define route names in main.dart
+    final routes = isBiz
+        ? ['/biz_recipes', '/biz_products', '/biz_orders', '/biz_profile']
+        : ['/biz_recipes', '/nutri_profile'];
+
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: _selectedIndex,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      onTap: (i) {
+        if (i == _selectedIndex) return;
+        setState(() => _selectedIndex = i);
+        Navigator.pushReplacementNamed(context, routes[i]);
+      },
+      items: items,
+    );
+  }
+
 
   Widget _buildNutritionFact({required IconData icon, required String value, required String unit}) {
     return Column(

@@ -1,262 +1,280 @@
 import 'package:flutter/material.dart';
-import '../shared/login.dart';
-import 'biz_partner_dashboard.dart';
-import 'biz_products_screen.dart';
-import 'biz_orders_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class BizProfileScreen extends StatefulWidget {
-  const BizProfileScreen({super.key});
+import '../../../../backend/controllers/fetch_biz_profile_controller.dart';
+import 'edit_biz_contact_screen.dart';
+import 'edit_biz_profile_screen.dart';
+
+class BusinessProfileScreen extends StatefulWidget {
+  const BusinessProfileScreen({super.key});
 
   @override
-  BizProfileScreenState createState() => BizProfileScreenState();
+  State<BusinessProfileScreen> createState() => _BusinessProfileScreenState();
 }
 
-class BizProfileScreenState extends State<BizProfileScreen> {
-  /// Business Partner Information
-  String name = "HealthyFood Pte Ltd";
-  String email = "HealthyFood@HFPL.com";
-  String registrationNumber = "1291839";
-  String location = "Singapore";
-
-  /// Controllers for Editable Fields
-  late TextEditingController _nameController;
-  late TextEditingController _emailController;
-  late TextEditingController _registrationController;
-  late TextEditingController _locationController;
-
-  bool _isEditing = false; // Toggle between View & Edit Mode
-  int _selectedIndex = 3; // Profile tab index
-
+class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: name);
-    _emailController = TextEditingController(text: email);
-    _registrationController = TextEditingController(text: registrationNumber);
-    _locationController = TextEditingController(text: location);
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<FetchBusinessProfileInfoController>().loadProfileData(uid);
+        }
+      });
+    }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _registrationController.dispose();
-    _locationController.dispose();
-    super.dispose();
+  void _refreshProfile(FetchBusinessProfileInfoController c) {
+    final uid = Supabase.instance.client.auth.currentUser?.id;
+    if (uid != null) c.loadProfileData(uid);
   }
 
-  /// **Save Profile & Switch Back to View Mode**
-  void _saveProfile() {
-    setState(() {
-      name = _nameController.text;
-      email = _emailController.text;
-      registrationNumber = _registrationController.text;
-      location = _locationController.text;
-      _isEditing = false;
-    });
-  }
-
-  /// **Delete Account Confirmation**
-  void _showDeleteAccountConfirmation() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Delete Account"),
-        content: const Text("Are you sure you want to delete this account? This action cannot be undone."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.black)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Account deleted successfully.")),
-              );
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Delete", style: TextStyle(color: Colors.white)),
-          ),
-        ],
+  void _navigateToEditProfile(BuildContext context, FetchBusinessProfileInfoController c) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditBizProfileScreen(
+          onUpdated: () => _refreshProfile(c),
+        ),
       ),
     );
   }
 
-  /// **Logout Function**
-  void _logout() {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
-  }
-
-  /// **Bottom Navigation Logic**
-  void _onItemTapped(int index) {
-    if (index != _selectedIndex) {
-      setState(() {
-        _selectedIndex = index;
-      });
-
-      switch (index) {
-        case 0:
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizPartnerDashboard()));
-          break;
-        case 1:
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizProductsScreen())); 
-          break;
-        case 2:
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const BizOrdersScreen()));
-          break;
-        case 3:
-          break; // Stay on Profile Page
-      }
-    }
+  void _navigateToEditContact(BuildContext context, FetchBusinessProfileInfoController c) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditBizContactScreen(
+          onUpdated: () => _refreshProfile(c),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
-      /// **App Bar**
       appBar: AppBar(
-        title: const Text("Profile (Biz Partner)"),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _isEditing = !_isEditing;
-              });
-            },
-            child: Text(
-              _isEditing ? "Cancel" : "Edit",
-              style: const TextStyle(fontSize: 16, color: Colors.green),
-            ),
-          ),
-        ],
-      ),
-
-      /// **Body Content**
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            /// **Profile Header**
-            const CircleAvatar(
-              radius: 50,
-              backgroundColor: Colors.grey,
-              child: Icon(Icons.person, size: 50, color: Colors.white),
-            ),
-            const SizedBox(height: 16),
-            const Text("My Business Profile", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-
-            const SizedBox(height: 20),
-
-            /// **Profile Fields**
-            _isEditing
-                ? _buildEditableField("Name", _nameController)
-                : _buildProfileField("Name", name, isBold: true),
-
-            _isEditing
-                ? _buildEditableField("Email", _emailController)
-                : _buildProfileField("Email", email),
-
-            _isEditing
-                ? _buildEditableField("Registration Number", _registrationController)
-                : _buildProfileField("Registration Number", registrationNumber),
-
-            _isEditing
-                ? _buildEditableField("Location", _locationController)
-                : _buildProfileField("Location", location),
-
-            const SizedBox(height: 20),
-
-            /// **Save Button (Only in Edit Mode)**
-            if (_isEditing)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text("Save", style: TextStyle(fontSize: 18, color: Colors.white)),
-                ),
-              ),
-
-            /// **Delete Account Button**
-            TextButton(
-              onPressed: _showDeleteAccountConfirmation,
-              child: const Text("Delete Account", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// **Logout Button**
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _logout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: const Text("Logout", style: TextStyle(fontSize: 18, color: Colors.white)),
-              ),
-            ),
-          ],
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'My Profile',
+          style: TextStyle(color: Colors.green, fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
+      body: Consumer<FetchBusinessProfileInfoController>(
+        builder: (context, controller, _) {
+          if (controller.isLoading) {
+            return const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+              ),
+            );
+          }
 
-      /// ✅ **Bottom Navigation Bar (Updated for Business Partner)**
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.storefront), label: "Products"),
-          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          final account = controller.account;
+          final profile = controller.businessProfile;
+          if (account == null || profile == null) {
+            return Center(
+              child: Text(
+                'Could not load profile data.',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            );
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // — Account Details (no Edit) —
+                _buildSection(
+                  context,
+                  title: 'Account Details',
+                  icon: Icons.account_circle_outlined,
+                  iconColor: Colors.green,
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildInfoRow('Email', account.email),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // — Business Profile —
+                _buildSection(
+                  context,
+                  title: 'Business Profile',
+                  icon: Icons.business_outlined,
+                  iconColor: Colors.green,
+                  onEdit: () => _navigateToEditProfile(context, controller),
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildInfoRow('Business Name', profile.businessName),
+                    _buildDivider(),
+                    _buildInfoRow('Registration No.', profile.registrationNo),
+                    _buildDivider(),
+                    _buildInfoRow('Country', profile.country),
+                    _buildDivider(),
+                    _buildInfoRow('Address', profile.address),
+                    _buildDivider(),
+                    _buildInfoRow(
+                      'Description',
+                      profile.description.isNotEmpty ? profile.description : 'Not specified',
+                    ),
+                    _buildDivider(),
+                    _buildInfoRow(
+                      'Website',
+                      profile.website.isNotEmpty ? profile.website : 'Not specified',
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Registration Documents',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildDocList(profile.registrationDocUrls),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // — Contact Person —
+                _buildSection(
+                  context,
+                  title: 'Contact Person',
+                  icon: Icons.contact_mail_outlined,
+                  iconColor: Colors.green,
+                  onEdit: () => _navigateToEditContact(context, controller),
+                  children: [
+                    const SizedBox(height: 12),
+                    _buildInfoRow('Name', profile.contactName),
+                    _buildDivider(),
+                    _buildInfoRow('Role', profile.contactRole),
+                    _buildDivider(),
+                    _buildInfoRow('Email', profile.contactEmail),
+                  ],
+                ),
+                const SizedBox(height: 30),
+
+                // — Logout —
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 30),
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await controller.logout();
+                      if (context.mounted) Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text('Log Out', style: TextStyle(color: colors.onPrimary)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: _buildBottomNavBar(context),
+    );
+  }
+
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    Color? iconColor,
+    VoidCallback? onEdit,
+    required List<Widget> children,
+  }) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 22, color: iconColor ?? theme.primaryColor),
+              const SizedBox(width: 8),
+              Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (onEdit != null)
+                TextButton(
+                  onPressed: onEdit,
+                  style: TextButton.styleFrom(foregroundColor: Colors.green),
+                  child: const Text('Edit'),
+                ),
+            ],
+          ),
+          ...children,
         ],
       ),
     );
   }
 
-  /// **Reusable Profile Field (View Mode)**
-  Widget _buildProfileField(String label, String value, {bool isBold = false}) {
+  Widget _buildInfoRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 16, color: Colors.black)),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 16, color: Colors.grey, fontWeight: isBold ? FontWeight.bold : FontWeight.normal),
-              textAlign: TextAlign.right,
-            ),
-          ),
+          Expanded(flex: 2, child: Text(label, style: const TextStyle(fontSize: 15, color: Colors.black54))),
+          Expanded(flex: 3, child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))),
         ],
       ),
     );
   }
 
-  /// **Reusable Input Field (Edit Mode)**
-  Widget _buildEditableField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-      ),
+  Widget _buildDivider() => Divider(height: 1, thickness: 0.5, color: Colors.grey[300]);
+
+  Widget _buildDocList(List<String> urls) {
+    if (urls.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: Text('• Not specified', style: TextStyle(color: Colors.grey[600], fontSize: 15)),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: urls
+          .map((u) => Padding(
+                padding: const EdgeInsets.only(left: 8.0, bottom: 4),
+                child: Text('• ${u.split('/').last}', style: const TextStyle(fontSize: 15, height: 1.4)),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildBottomNavBar(BuildContext context) {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 3,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      onTap: (i) {
+        if (i == 3) return;
+        Navigator.pushReplacementNamed(context, ['/biz_recipes', '/biz_products', '/biz_orders', '/biz_profile'][i]);
+      },
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+        BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Products'),
+        BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Orders'),
+        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+      ],
     );
   }
 }

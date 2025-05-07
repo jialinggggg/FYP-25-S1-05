@@ -11,9 +11,9 @@ import '../../../../services/country_service.dart';
 class EditProfileScreen extends StatelessWidget {
   final VoidCallback onProfileUpdated;
   const EditProfileScreen({
-    Key? key,
+    super.key,
     required this.onProfileUpdated,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +32,8 @@ class EditProfileScreen extends StatelessWidget {
 class _EditProfileForm extends StatefulWidget {
   final VoidCallback onProfileUpdated;
   const _EditProfileForm({
-    Key? key,
     required this.onProfileUpdated,
-  }) : super(key: key);
+  });
 
   @override
   State<_EditProfileForm> createState() => _EditProfileFormState();
@@ -280,7 +279,7 @@ class _EditProfileFormState extends State<_EditProfileForm> {
                                     if (_formKey.currentState!.validate()) {
                                       c.updateProfile().then((_) {
                                         widget.onProfileUpdated();
-                                        Navigator.pop(context);
+                                        if (context.mounted) Navigator.pop(context);
                                       });
                                     }
                                   },

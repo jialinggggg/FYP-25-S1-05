@@ -5,14 +5,13 @@ import 'package:file_picker/file_picker.dart';
 import '../../../../backend/signup/nutri_signup_state.dart';
 
 class SignupNutritionistScreen extends StatefulWidget {
-  const SignupNutritionistScreen({Key? key}) : super(key: key);
+  const SignupNutritionistScreen({super.key});
 
   @override
-  _SignupNutritionistScreenState createState() =>
-      _SignupNutritionistScreenState();
+  SignupNutritionistScreenState createState() => SignupNutritionistScreenState();
 }
 
-class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
+class SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
   final _fullNameController      = TextEditingController();
   final _organizationController  = TextEditingController();
   final _licenseNumberController = TextEditingController();
@@ -64,7 +63,7 @@ class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
           .where((p) => p != null)
           .map((p) => File(p!))
           .toList();
-      if (files.isNotEmpty) {
+      if (files.isNotEmpty && mounted) {
         context.read<NutritionistSignupState>().setLicenseScans(files);
         setState(() => _scansError = null);
       }
@@ -76,18 +75,29 @@ class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
   }) async {
     final state = context.read<NutritionistSignupState>();
     final now = DateTime.now();
+
     final initial = isIssuance
-        ? state.issuanceDate ?? now
-        : (state.expirationDate ?? now);
+        ? (state.issuanceDate ?? now)
+        : (state.expirationDate ?? (state.issuanceDate?.add(Duration(days: 1)) ?? now.add(Duration(days: 1))));
+
     final firstDate = isIssuance
         ? DateTime(1900)
-        : (state.issuanceDate ?? DateTime(1900));
+        : (state.issuanceDate ?? now);
+
+    final lastDate = isIssuance ? now : DateTime(2100);
+
+    // Ensure initial is within valid range
+    final safeInitial = initial.isBefore(firstDate)
+        ? firstDate
+        : (initial.isAfter(lastDate) ? lastDate : initial);
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: initial,
+      initialDate: safeInitial,
       firstDate: firstDate,
-      lastDate: DateTime(2100),
+      lastDate: lastDate,
     );
+
     if (picked != null) {
       if (isIssuance) {
         state.setIssuanceDate(picked);
@@ -140,18 +150,14 @@ class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<NutritionistSignupState>();
 
-    String _formatDate(DateTime? dt) =>
-        dt != null ? dt.toLocal().toIso8601String().split('T').first : 'Select';
-
     return Scaffold(
-      body: SafeArea(
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
         child: SingleChildScrollView(
           physics: BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Center(
                 child: Text(
                   "Nutritionist Sign Up",
@@ -159,122 +165,139 @@ class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Progress indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    2,
-                    (index) => Container(
-                      width: 179,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        color: index == 0 ? Colors.green : Colors.black,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  2,
+                  (index) => Container(
+                    width: 175,
+                    height: 5,
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: index == 0 ? Colors.green : Colors.black,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-
+              ),
+              const SizedBox(height: 30),
               Text(
                 "Tell us about your credentials",
                 style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
               ),
-              const SizedBox(height: 30),
-
-              // Full Name
+              const SizedBox(height: 15),
               _buildTextField(
                 controller: _fullNameController,
                 label: "Full Name",
                 hint: "Enter full name",
                 errorText: _fullNameError,
               ),
-
-              // Organization (optional)
               _buildTextField(
                 controller: _organizationController,
                 label: "Company / Organization (optional)",
                 hint: "Enter organization",
               ),
-
-              // License Number
               _buildTextField(
                 controller: _licenseNumberController,
                 label: "License No. / Registration ID",
                 hint: "Enter license number",
                 errorText: _licenseNumberError,
               ),
-
-              // Issuing Body
               _buildTextField(
                 controller: _issuingBodyController,
                 label: "Issuing Body",
                 hint: "e.g. State Board, Dietetic Assoc.",
                 errorText: _issuingBodyError,
               ),
+              const SizedBox(height: 20),
 
               // Issuance Date
-              const SizedBox(height: 20),
-              Text("Issuance Date",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text("Issuance Date", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => _selectDate(isIssuance: true),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(
+                        text: state.issuanceDate == null
+                            ? ''
+                            : state.issuanceDate!.toLocal().toIso8601String().split('T').first,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Select issuance date",
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      readOnly: true,
+                      onTap: () => _selectDate(isIssuance: true),
+                    ),
                   ),
-                  child: Text(_formatDate(state.issuanceDate)),
-                ),
+                  IconButton(
+                    icon: Icon(Icons.calendar_today),
+                    onPressed: () => _selectDate(isIssuance: true),
+                  ),
+                ],
               ),
               if (_issuanceDateError != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 5),
-                  child: Text(_issuanceDateError!,
-                      style: TextStyle(color: Colors.red, fontSize: 12)),
+                  child: Text(_issuanceDateError!, style: TextStyle(color: Colors.red, fontSize: 12)),
                 ),
+              const SizedBox(height: 20),
 
               // Expiration Date
-              const SizedBox(height: 20),
-              Text("Expiration Date",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text("Expiration Date", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () => _selectDate(isIssuance: false),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(10),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(
+                        text: state.expirationDate == null
+                            ? ''
+                            : state.expirationDate!.toLocal().toIso8601String().split('T').first,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Select expiration date",
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      readOnly: true,
+                      onTap: () => _selectDate(isIssuance: false),
+                    ),
                   ),
-                  child: Text(_formatDate(state.expirationDate)),
-                ),
+                  IconButton(
+                    icon: Icon(Icons.calendar_today),
+                    onPressed: () => _selectDate(isIssuance: false),
+                  ),
+                ],
               ),
               if (_expirationDateError != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 5),
-                  child: Text(_expirationDateError!,
-                      style: TextStyle(color: Colors.red, fontSize: 12)),
+                  child: Text(_expirationDateError!, style: TextStyle(color: Colors.red, fontSize: 12)),
                 ),
-
-              // Upload scans
               const SizedBox(height: 30),
-              Text("Upload License Scans",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+
+              Text("Upload License Scans", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: _pickScans,
-                icon: Icon(Icons.attach_file),
-                label: Text("Choose Files"),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.attach_file, color: Colors.green),
+                  label: Text(
+                    "Choose Files",
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _pickScans,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
                 ),
               ),
               if (state.licenseScans.isNotEmpty)
@@ -290,40 +313,37 @@ class _SignupNutritionistScreenState extends State<SignupNutritionistScreen> {
               if (_scansError != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 5),
-                  child: Text(_scansError!,
-                      style: TextStyle(color: Colors.red, fontSize: 12)),
+                  child: Text(_scansError!, style: TextStyle(color: Colors.red, fontSize: 12)),
                 ),
-
-              const SizedBox(height: 40),
-
-              // Navigation Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, size: 30),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  ElevatedButton(
-                    onPressed: _validateAndNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 100, vertical: 15),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(40)),
-                    ),
-                    child:
-                        Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              onPressed: _validateAndNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 135, vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+              ),
+              child: Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
+
 
   Widget _buildTextField({
     required TextEditingController controller,
