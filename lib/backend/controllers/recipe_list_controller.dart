@@ -72,6 +72,7 @@ class RecipeListController with ChangeNotifier {
       final spoonacularRecipes = await _spoonacularService.fetchRecipesWithConditions(
         recommendedIngredients: ingredientQuery,
         allergies: userInfo.allergies,
+        userConditions: userInfo.preExisting,
         limit: spoonacularLimit * 3,
         offset: spoonacularOffset,
       );
@@ -135,7 +136,7 @@ class RecipeListController with ChangeNotifier {
       final newSpoonacularRaw = await _spoonacularService.fetchRecipesWithConditions(
         recommendedIngredients: ingredientQuery,
         allergies: userInfo.allergies,
-        diets: _getSpoonacularDiets(userInfo.preExisting),
+        userConditions: userInfo.preExisting,
         limit: spoonacularLimit * 3,
         offset: offset,
       );
@@ -268,20 +269,6 @@ class RecipeListController with ChangeNotifier {
     ).amount;
   }
 
-  List<String> _getSpoonacularDiets(List<String> conditions) {
-    final diets = <String>{};
-
-    if (conditions.contains('type 2 diabetes')) {
-      diets.addAll(['low carb', 'low sugar']);
-    }
-
-    if (conditions.contains('high blood pressure')) {
-      diets.add('low sodium');
-    }
-
-    return diets.toList();
-  }
-
   Future<List<String>> _getNutridigmQuery(List<String> conditions) async {
     final Set<String> ingredients = {};
     for (final condition in conditions) {
@@ -315,17 +302,29 @@ class RecipeListController with ChangeNotifier {
   bool _matchRecommendedNutrients(Recipes recipe, List<String> conditions) {
     final nutrients = recipe.nutrition?.nutrients ?? [];
 
-    if (conditions.contains('type 2 diabetes')) {
-      final sugar = _getAmount(nutrients, 'Sugar');
-      final carbs = _getAmount(nutrients, 'Carbohydrates');
-      if (sugar >= 5 || carbs >= 30) return false;
+    final sugar = _getAmount(nutrients, 'Sugar');
+    final carbs = _getAmount(nutrients, 'Carbohydrates');
+    final sodium = _getAmount(nutrients, 'Sodium');
+
+    final hasDiabetes = conditions.contains('Type 2 diabetes');
+    final hasPressure = conditions.contains('High blood pressure');
+
+    if (hasDiabetes && hasPressure) {
+      return carbs <= 65 &&
+          sugar <= 10 &&
+          sodium < 500;
     }
 
-    if (conditions.contains('high blood pressure')) {
-      final sodium = _getAmount(nutrients, 'Sodium');
-      if (sodium >= 140) return false;
+    if (hasDiabetes) {
+      return carbs <= 65 &&
+          sugar <= 10;
+    }
+
+    if (hasPressure) {
+      return sodium < 500;
     }
 
     return true;
   }
+
 }

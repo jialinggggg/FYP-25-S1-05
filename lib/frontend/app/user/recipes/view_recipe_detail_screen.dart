@@ -78,6 +78,7 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
 
           // 3. Show allergy popup if there's a conflict
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            final userConditions = ['Type 2 diabetes', 'High blood pressure'];
             if (controller.hasAllergyConflict && controller.matchedAllergen != null) {
               showDialog(
                 context: context,
@@ -94,7 +95,23 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
                   ],
                 ),
               );
-            }
+              } else if (controller.exceedsConditionLimits(userConditions)) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Health Warning'),
+                    content: const Text(
+                      'This recipe may exceed recommended limits for your health conditions (e.g. sugar, carbs, sodium). Please consult your healthcare provider.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              }
           });
 
           // 4. Main content when loaded and valid
@@ -355,6 +372,8 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
       ),
     );
   }
+
+
 
   Widget _buildNutritionSection(Recipes recipe) {
     return Padding(

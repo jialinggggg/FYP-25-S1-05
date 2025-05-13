@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../entities/recipes.dart';
+import '../entities/nutrition.dart';
 import '../entities/recipe_rating.dart';
 
 class ViewRecipeDetailController with ChangeNotifier {
@@ -77,7 +78,7 @@ class ViewRecipeDetailController with ChangeNotifier {
         _loadRatingStats(),
       ]);
 
-      if (!_isExternalRecipe && currentUser != null) {
+      if (!_isExternalRecipe) {
         _isOwner = await _isOwnerCheck();
         await _checkIfRecipeIsHidden();
       }
@@ -312,5 +313,36 @@ class ViewRecipeDetailController with ChangeNotifier {
       }
     }
   }
+  
+  bool exceedsConditionLimits(List<String> userConditions) {
+    final nutrition = _recipe.nutrition;
+    if (nutrition == null) return false;
 
+    double getAmount(String key) {
+      return nutrition.nutrients
+              .firstWhere(
+                (n) => n.title.toLowerCase().contains(key.toLowerCase()),
+                orElse: () => Nutrient(title: '', amount: 0, unit: ''),
+              )
+              .amount ??
+          0;
+    }
+
+    final carbs = getAmount('carbohydrate');
+    final sugar = getAmount('sugar');
+    final sodium = getAmount('sodium');
+
+    final hasDiabetes = userConditions.contains('type 2 diabetes');
+    final hasPressure = userConditions.contains('high blood pressure');
+
+    if (hasDiabetes && hasPressure) {
+      return carbs > 65 || sugar > 10 || sodium >= 500;
+    } else if (hasDiabetes) {
+      return carbs > 65 || sugar > 10;
+    } else if (hasPressure) {
+      return sodium >= 500;
+    }
+
+    return false;
+  }
 }

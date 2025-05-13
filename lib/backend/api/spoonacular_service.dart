@@ -8,7 +8,7 @@ import '../entities/nutrition.dart';
 
 
 class SpoonacularService {
-  static const String _apiKey = 'fede250789e24f828573be12cb0d08a8'; // Replace with your actual API key
+  static const String _apiKey = '4a3dbd9522034168aad4673d5bf2e193'; // Replace with your actual API key
   static const String _baseUrl = 'https://api.spoonacular.com';
 
   Future<List<Map<String, dynamic>>> searchIngredients({
@@ -272,7 +272,7 @@ class SpoonacularService {
   Future<List<Recipes>> fetchRecipesWithConditions({
     required List<String> recommendedIngredients,
     required List<String> allergies,
-    List<String>? diets,
+    required List<String> userConditions, // <-- ADD THIS
     int limit = 5,
     int offset = 0,
   }) async {
@@ -280,15 +280,18 @@ class SpoonacularService {
     final intolerances = allergies.join(',');
     final random = Random();
 
-    for (final ingredient in recommendedIngredients) {
+    final hasDiabetes = userConditions.contains('type 2 diabetes');
+    final hasPressure = userConditions.contains('high blood pressure');
+
+    // If user has both conditions, skip ingredient query
+    if (hasDiabetes && hasPressure) {
       final response = await http.get(
         Uri.parse(
           '$_baseUrl/recipes/complexSearch?apiKey=$_apiKey'
-          '&query=${Uri.encodeComponent(ingredient)}'
-          '&number=1'
-          '&offset=${random.nextInt(50)}'
+          '&query=healthy'
+          '&number=$limit'
+          '&offset=$offset'
           '&intolerances=$intolerances'
-          '${diets != null && diets.isNotEmpty ? '&diet=${Uri.encodeComponent(diets.join(','))}' : ''}'
           '&addRecipeNutrition=true'
           '&fillIngredients=true'
           '&instructionsRequired=true',
@@ -297,55 +300,81 @@ class SpoonacularService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (data['results'] != null && data['results'] is List && data['results'].isNotEmpty) {
-          final recipeData = data['results'][0];
+        if (data['results'] is List) {
+          allRecipes.addAll((data['results'] as List).map((recipeData) => _parseRecipe(recipeData)));
+        }
+      }
+    } else {
+      for (final ingredient in recommendedIngredients) {
+        final response = await http.get(
+          Uri.parse(
+            '$_baseUrl/recipes/complexSearch?apiKey=$_apiKey'
+            '&query=${Uri.encodeComponent(ingredient)}'
+            '&number=1'
+            '&offset=${random.nextInt(50)}'
+            '&intolerances=$intolerances'
+            '&addRecipeNutrition=true'
+            '&fillIngredients=true'
+            '&instructionsRequired=true',
+          ),
+        );
 
-          // Convert to Recipes model (you likely have this logic already):
-          final recipe = Recipes(
-            id: recipeData['id'] as int,
-            title: recipeData['title'],
-            image: recipeData['image'],
-            imageType: recipeData['imageType'] ?? 'jpg',
-            readyInMinutes: recipeData['readyInMinutes'] ?? 0,
-            servings: recipeData['servings'] ?? 1,
-            sourceName: recipeData['sourceName'] ?? 'Spoonacular',
-            sourceType: "spoonacular",
-            analyzedInstructions: (recipeData['analyzedInstructions'] as List?)?.map((i) =>
-                AnalyzedInstruction(
-                  name: i['name'] ?? '',
-                  steps: (i['steps'] as List).map((step) =>
-                      InstructionStep(
-                        number: step['number'],
-                        step: step['step'],
-                      )).toList(),
-                )).toList(),
-            extendedIngredients: (recipeData['extendedIngredients'] as List?)?.map((i) =>
-                ExtendedIngredient(
-                  id: i['id'],
-                  name: i['name'] ?? i['original'] ?? 'Unknown ingredient',
-                  amount: (i['amount'] as num).toDouble(),
-                  unit: i['unit'] ?? '',
-                )).toList(),
-            diets: List<String>.from(recipeData['diets'] ?? []),
-            dishTypes: List<String>.from(recipeData['dishTypes'] ?? []),
-            nutrition: recipeData['nutrition'] != null
-                ? Nutrition(
-                    nutrients: (recipeData['nutrition']['nutrients'] as List).map<Nutrient>((n) =>
-                      Nutrient(
-                        title: n['name'],
-                        amount: (n['amount'] as num).toDouble(),
-                        unit: n['unit'],
-                      )).toList(),
-                  )
-                : null,
-          );
-
-          allRecipes.add(recipe);
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['results'] != null &&
+              data['results'] is List &&
+              data['results'].isNotEmpty) {
+            final recipe = _parseRecipe(data['results'][0]);
+            allRecipes.add(recipe);
+          }
         }
       }
     }
 
     return allRecipes;
   }
+
+  Recipes _parseRecipe(Map<String, dynamic> recipeData) {
+  return Recipes(
+    id: recipeData['id'] as int,
+    title: recipeData['title'],
+    image: recipeData['image'],
+    imageType: recipeData['imageType'] ?? 'jpg',
+    readyInMinutes: recipeData['readyInMinutes'] ?? 0,
+    servings: recipeData['servings'] ?? 1,
+    sourceName: recipeData['sourceName'] ?? 'Spoonacular',
+    sourceType: "spoonacular",
+    analyzedInstructions: (recipeData['analyzedInstructions'] as List?)?.map((i) =>
+        AnalyzedInstruction(
+          name: i['name'] ?? '',
+          steps: (i['steps'] as List).map((step) =>
+              InstructionStep(
+                number: step['number'],
+                step: step['step'],
+              )).toList(),
+        )).toList(),
+    extendedIngredients: (recipeData['extendedIngredients'] as List?)?.map((i) =>
+        ExtendedIngredient(
+          id: i['id'],
+          name: i['name'] ?? i['original'] ?? 'Unknown ingredient',
+          amount: (i['amount'] as num).toDouble(),
+          unit: i['unit'] ?? '',
+        )).toList(),
+    diets: List<String>.from(recipeData['diets'] ?? []),
+    dishTypes: List<String>.from(recipeData['dishTypes'] ?? []),
+    nutrition: recipeData['nutrition'] != null
+        ? Nutrition(
+            nutrients: (recipeData['nutrition']['nutrients'] as List).map<Nutrient>((n) =>
+              Nutrient(
+                title: n['name'],
+                amount: (n['amount'] as num).toDouble(),
+                unit: n['unit'],
+              )).toList(),
+          )
+        : null,
+  );
+}
+
+
 
 }
