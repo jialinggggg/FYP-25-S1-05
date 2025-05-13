@@ -7,12 +7,18 @@ import 'package:nutri_app/backend/entities/meal_log.dart';
 import 'package:nutri_app/backend/controllers/fetch_recipe_for_meal_log_controller.dart';
 import 'package:nutri_app/backend/controllers/search_recipe_by_name_controller.dart';
 import 'package:nutri_app/backend/controllers/log_meal_controller.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io'; 
+import 'package:image/image.dart' as img;
+import 'package:permission_handler/permission_handler.dart';
 
 class LogMealScreen extends StatefulWidget {
   final String mealType;
   final DateTime selectedDate;
   
-  const LogMealScreen({super.key, required this.mealType, required this.selectedDate,});
+  const LogMealScreen({super.key, required this.mealType, required this.selectedDate});
 
   @override
   State<LogMealScreen> createState() => _LogMealScreenState();
@@ -41,6 +47,127 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _recognizeFoodFromImage() async {
+    try {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Camera permission is required')),
+          );
+        }
+        return;
+      }
+
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      final bytes = await File(pickedFile.path).readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Image file is empty');
+      }
+
+      if (bytes.lengthInBytes > 10 * 1024 * 1024) {
+        throw Exception('Image is too large (max 10MB)');
+      }
+
+      final image = img.decodeImage(bytes);
+      if (image == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      const targetWidth = 800;
+      final targetHeight = (image.height * (targetWidth / image.width)).toInt();
+
+      final resizedImage = img.copyResize(
+        image,
+        width: targetWidth,
+        height: targetHeight,
+      );
+
+      final jpgBytes = img.encodeJpg(resizedImage, quality: 85);
+      final base64Image = base64Encode(jpgBytes);
+
+      const apiKey = 'AIzaSyB_hTILl0ruoHg_-NmerTbi03D7JRvY57k';
+      const url = 'https://vision.googleapis.com/v1/images:annotate?key=$apiKey';
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "requests": [
+            {
+              "image": {"content": base64Image},
+              "features": [
+                {"type": "LABEL_DETECTION", "maxResults": 10},
+                {"type": "WEB_DETECTION", "maxResults": 5}
+              ]
+            }
+          ]
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode != 200) {
+        final error = jsonDecode(response.body)['error'] ?? {};
+        throw Exception('API error: ${error['message'] ?? 'Unknown error'}');
+      }
+
+      final responseData = jsonDecode(response.body);
+      final firstResponse = responseData['responses'][0];
+
+      final labels = (firstResponse['labelAnnotations'] ?? [])
+          .map<String>((l) => l['description']?.toString() ?? '')
+          .toList();
+
+      final webEntities = (firstResponse['webDetection']?['webEntities'] ?? [])
+          .map<String>((w) => w['description']?.toString() ?? '')
+          .toList();
+
+      final allResults = [...labels, ...webEntities].toSet().toList();
+
+      if (allResults.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not recognize any food in the image')),
+          );
+        }
+        return;
+      }
+
+      const foodKeywords = [
+        'food', 'fruit', 'vegetable', 'meal', 'dish', 'banana', 'apple',
+        'rice', 'pasta', 'bread', 'meat', 'chicken', 'fish'
+      ];
+
+      String bestFoodMatch = allResults.firstWhere(
+        (item) => foodKeywords.any((keyword) => item.toLowerCase().contains(keyword)),
+        orElse: () => allResults.first,
+      );
+
+      _searchController.text = bestFoodMatch;
+      final searchController = Provider.of<SearchRecipeByNameController>(context, listen: false);
+      searchController.setSearchQuery(bestFoodMatch);
+      searchController.searchRecipes(bestFoodMatch);
+      setState(() {
+        _isSearching = true;
+      });
+    } catch (e) {
+      print('Food recognition error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   void _fetchRecipes(String uid, String tab) {
@@ -98,7 +225,7 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
                           items: controller.loggedMeals,
                           isSearching: controller.isLoading,
                           onAddMeal: (mealLog) {
-                          viewLoggedMealsController.removeLogMeal(mealLog.mealId);
+                            viewLoggedMealsController.removeLogMeal(mealLog.mealId);
                           },
                           isAddedMeal: true,
                         );
@@ -113,7 +240,6 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
       },
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +271,7 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
       ),
       bottomNavigationBar: _buildSaveButton(),
     );
-  }
+  } 
 
   Widget _buildSearchBar() {
     return Consumer<SearchRecipeByNameController>(
@@ -153,32 +279,42 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 5),
           padding: const EdgeInsets.symmetric(horizontal: 5),
-          child: TextField(
-            controller: _searchController,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              hintText: "Search meals...",
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-                borderSide: BorderSide.none,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    hintText: "Search meals...",
+                    filled: true,
+                    fillColor: Colors.grey[200],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                  ),
+                  onChanged: (value) {
+                    searchController.setSearchQuery(value);
+                    if (value.isNotEmpty) {
+                      searchController.searchRecipes(value);
+                      setState(() {
+                        _isSearching = true;
+                      });
+                    } else {
+                      setState(() {
+                        _isSearching = false;
+                      });
+                    }
+                  },
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-            ),
-            onChanged: (value) {
-              searchController.setSearchQuery(value);
-              if (value.isNotEmpty) {
-                searchController.searchRecipes(value);
-                setState(() {
-                  _isSearching = true;
-                });
-              } else {
-                setState(() {
-                  _isSearching = false;
-                });
-              }
-            },
+              IconButton(
+                icon: const Icon(Icons.camera_alt, color: Colors.green),
+                onPressed: _recognizeFoodFromImage,
+              ),
+            ],
           ),
         );
       },
@@ -229,7 +365,6 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
       },
     );
   }
-
 
   Widget _buildSearchResults() {
     return Consumer<SearchRecipeByNameController>(
@@ -287,7 +422,6 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
       },
     );
   }
-
 
   Widget _buildRecipeList({
     required List<dynamic> items, // List<Recipes> or List<MealLog>
@@ -413,6 +547,4 @@ class _LogMealScreenState extends State<LogMealScreen> with SingleTickerProvider
       ),
     );
   }
-
-
 }
