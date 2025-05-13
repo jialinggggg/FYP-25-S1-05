@@ -28,6 +28,7 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
   late TextEditingController _stockController;
   String? _selectedImage;
   bool _isDeleting = false;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -40,34 +41,36 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
     _selectedImage = widget.product["image"]?.toString();
   }
 
-  void _pickImage() async {
-    try {
-      final status = await Permission.storage.request();
-      final photosStatus = await Permission.photos.request();
+  Future<void> _pickImage() async {
+  Permission permission = Platform.isAndroid
+      ? (await Permission.photos.request().isGranted
+          ? Permission.photos
+          : Permission.storage)
+      : Permission.photos;
 
-      if (!status.isGranted && !photosStatus.isGranted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Storage permission is required to select images")),
-        );
-        return;
-      }
+  final permissionStatus = await permission.request();
 
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+  if (!mounted) return;
 
-      if (pickedFile != null) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(child: CircularProgressIndicator()),
-        );
+  if (permissionStatus.isGranted) {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
+    if (!mounted) return;
+
+    if (image != null) {
+      setState(() {
+        _isUploading = true;
+      });
+
+      try {
+        final file = File(image.path);
         final imageUrl = await ProductService.uploadProductImage(
-          File(pickedFile.path),
+          file,
           'product_${DateTime.now().millisecondsSinceEpoch}.jpg',
         );
 
-        if (mounted) Navigator.of(context).pop();
+        if (!mounted) return;
 
         if (imageUrl != null) {
           setState(() {
@@ -78,27 +81,39 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
             const SnackBar(content: Text("Failed to upload image")),
           );
         }
-      }
-    } catch (e) {
-      if (mounted) {
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: ${e.toString()}")),
         );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+        }
       }
     }
-  }
-
-  void _saveChanges() async {
-    int stock = int.tryParse(_stockController.text) ?? 0;
-
-    if (stock > 100) {
+  } else {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("The stock limit reached (100 max)")),
+        const SnackBar(content: Text("Permission denied! Please enable it in settings.")),
+      );
+    }
+  }
+}
+
+
+  Future<void> _saveChanges() async {
+    final stock = int.tryParse(_stockController.text) ?? 0;
+    if (stock > 100) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Stock limit reached (100 max)")),
       );
       return;
     }
 
-    Map<String, dynamic> updatedProduct = {
+    final updatedProduct = {
       "name": _nameController.text,
       "description": _descriptionController.text,
       "price": _priceController.text,
@@ -114,49 +129,44 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
         updatedProduct,
       );
 
+      if (!mounted) return;
+      
       if (response != null) {
         widget.onUpdate(response);
-
         if (response['wasCapped'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("The stock limit reached (100 max)")),
+            const SnackBar(content: Text("Stock was capped at 100")),
           );
         }
-
-        if (mounted) Navigator.pop(context);
+        Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to update product")),
         );
       }
     } catch (e) {
-      print('Error updating product: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     }
   }
 
   Future<void> _deleteProduct() async {
     setState(() => _isDeleting = true);
-
     try {
       await ProductService.deleteProduct(widget.product['id'], _selectedImage);
       widget.onDelete();
-
-      if (mounted) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      }
+      if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting product: ${e.toString()}')),
+          SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isDeleting = false);
-      }
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
@@ -165,11 +175,11 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Delete Product"),
-        content: const Text("Are you sure you want to delete this product? This action cannot be undone."),
+        content: const Text("Are you sure you want to delete this product?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel", style: TextStyle(color: Colors.black)),
+            child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: _deleteProduct,
@@ -187,10 +197,14 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Product Details", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text("Product Details"),
+        actions: [
+          if (_isUploading)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -199,43 +213,65 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(12),
-                    image: _selectedImage != null
-                        ? (_selectedImage!.startsWith('http')
-                            ? DecorationImage(
-                                image: NetworkImage(_selectedImage!),
-                                fit: BoxFit.cover,
-                              )
-                            : DecorationImage(
-                                image: FileImage(File(_selectedImage!)),
-                                fit: BoxFit.cover,
-                              ))
-                        : const DecorationImage(
-                            image: AssetImage("assets/default_image.png"),
-                            fit: BoxFit.cover,
-                          ),
-                  ),
-                  child: const Center(child: Icon(Icons.camera_alt, color: Colors.black54, size: 30)),
+  onTap: _pickImage,
+  child: Container(
+    height: 200,
+    decoration: BoxDecoration(
+      color: Colors.grey[300],
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: _isUploading
+        ? const Center(child: CircularProgressIndicator())
+        : _selectedImage != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.network(
+                  _selectedImage!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Center(child: Icon(Icons.broken_image)),
+                ),
+              )
+            : const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.image, size: 50, color: Colors.black54),
+                    SizedBox(height: 8),
+                    Text("Select Product Image"),
+                  ],
                 ),
               ),
+  ),
+),
+
               const SizedBox(height: 20),
-              const Text("Product Name", style: TextStyle(fontWeight: FontWeight.bold)),
-              TextField(controller: _nameController, decoration: const InputDecoration(border: OutlineInputBorder())),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: "Product Name",
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 10),
-              const Text("Description", style: TextStyle(fontWeight: FontWeight.bold)),
-              TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(border: OutlineInputBorder())),
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: "Description",
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _priceController,
-                      decoration: const InputDecoration(labelText: "Price (\$)", border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: "Price (\$)",
+                        border: OutlineInputBorder(),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                   ),
@@ -243,23 +279,30 @@ class BizProductDetailsScreenState extends State<BizProductDetailsScreen> {
                   Expanded(
                     child: TextField(
                       controller: _stockController,
-                      decoration: const InputDecoration(labelText: "Stock Quantity", border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: "Stock Quantity",
+                        border: OutlineInputBorder(),
+                      ),
                       keyboardType: TextInputType.number,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              const Text("Category", style: TextStyle(fontWeight: FontWeight.bold)),
-              TextField(controller: _categoryController, decoration: const InputDecoration(border: OutlineInputBorder())),
+              TextField(
+                controller: _categoryController,
+                decoration: const InputDecoration(
+                  labelText: "Category",
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _saveChanges,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                      child: const Text("Save Changes", style: TextStyle(color: Colors.white)),
+                      child: const Text("Save Changes"),
                     ),
                   ),
                   const SizedBox(width: 10),

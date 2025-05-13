@@ -16,7 +16,7 @@ class ProductService {
 
     // Upload file (throws if error occurs)
     await _supabase.storage
-        .from('product-images')
+        .from('product-image')
         .upload(
           fileName,
           imageFile,
@@ -25,7 +25,7 @@ class ProductService {
 
     // Get public URL
     final response = await _supabase.storage
-        .from('product-images')
+        .from('product-image')
         .createSignedUrl(fileName, 60 * 60 * 24 * 365 * 10); // 10 years
 
     return response;
@@ -40,7 +40,7 @@ class ProductService {
   static Future<void> deleteProduct(String productId, String? imagePath) async {
     if (imagePath != null && imagePath.startsWith('storage/')) {
       final path = imagePath.replaceFirst('storage/', '');
-      await _supabase.storage.from('product_images').remove([path]);
+      await _supabase.storage.from('product-image').remove([path]);
     }
 
     await _supabase.from('products').delete().eq('id', productId);
