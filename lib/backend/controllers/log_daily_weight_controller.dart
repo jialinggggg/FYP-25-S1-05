@@ -17,36 +17,36 @@ class LogDailyWeightController extends ChangeNotifier {
   /// to the most-recent ever logged measurement.
   Future<void> fetchWeightForDate(String uid, DateTime date) async {
     try {
-      // 1) look for an entry on that date
-      final startOfDay = DateTime.utc(date.year, date.month, date.day);
-      final endOfDay   = startOfDay.add(const Duration(days: 1));
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
 
+      // 1) Look for an entry on the selected date
       final dayResponse = await supabaseClient
-        .from('user_measurements')
-        .select()
-        .eq('uid', uid)
-        .gte('created_at', startOfDay.toIso8601String())
-        .lt ('created_at', endOfDay  .toIso8601String())
-        .limit(1);
-
-      if (dayResponse.isNotEmpty) {
-        // Got one for the selected date
-        final m = UserMeasurement.fromMap(dayResponse[0]);
-        _latestWeight   = m.weight;
-        _isWeightLogged = true;
-      } else {
-        // No entry for that date → mark false and fall back to latest ever
-        _isWeightLogged = false;
-
-        final everResponse = await supabaseClient
           .from('user_measurements')
           .select()
           .eq('uid', uid)
-          .order('created_at', ascending: false)
+          .gte('created_at', startOfDay.toIso8601String())
+          .lt('created_at', endOfDay.toIso8601String())
           .limit(1);
 
-        if (everResponse.isNotEmpty) {
-          final m = UserMeasurement.fromMap(everResponse[0]);
+      if (dayResponse.isNotEmpty) {
+        final m = UserMeasurement.fromMap(dayResponse[0]);
+        _latestWeight = m.weight;
+        _isWeightLogged = true;
+      } else {
+        _isWeightLogged = false;
+
+        // 2) Get latest entry BEFORE the selected date
+        final fallbackResponse = await supabaseClient
+            .from('user_measurements')
+            .select()
+            .eq('uid', uid)
+            .lt('created_at', startOfDay.toIso8601String())
+            .order('created_at', ascending: false)
+            .limit(1);
+
+        if (fallbackResponse.isNotEmpty) {
+          final m = UserMeasurement.fromMap(fallbackResponse[0]);
           _latestWeight = m.weight;
         } else {
           _latestWeight = null;
@@ -58,6 +58,7 @@ class LogDailyWeightController extends ChangeNotifier {
       throw Exception('Failed to fetch weight for $date: $e');
     }
   }
+
 
   /// Inserts or updates the weight for [date], stamping created_at accordingly,
   /// then re-fetches via fetchWeightForDate to refresh state.
@@ -92,7 +93,7 @@ class LogDailyWeightController extends ChangeNotifier {
         'weight':     weight,
         'height':     height,
         'bmi':        bmi,
-        'created_at': date.toIso8601String(),
+        'created_at': DateTime(date.year, date.month, date.day).toIso8601String(),
       };
 
       if (existing.isNotEmpty) {

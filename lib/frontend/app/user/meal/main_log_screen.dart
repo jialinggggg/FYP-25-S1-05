@@ -83,9 +83,22 @@ class _MainLogScreenState extends State<MainLogScreen> {
   }
 
   void _nextDate() {
-    setState(() => _selectedDate = _selectedDate.add(const Duration(days: 1)));
+    final today = DateTime.now();
+    final nextDay = _selectedDate.add(const Duration(days: 1));
+
+    // Strip time from DateTime to compare only dates
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final nextDateOnly = DateTime(nextDay.year, nextDay.month, nextDay.day);
+
+    if (nextDateOnly.isAfter(todayDate)) {
+      // Prevent navigating into future
+      return;
+    }
+
+    setState(() => _selectedDate = nextDay);
     _loadDataForDate(_selectedDate);
   }
+
 
   Future<void> _saveWeight() async {
     final uid = _supabase.auth.currentUser?.id;
@@ -219,6 +232,11 @@ class _MainLogScreenState extends State<MainLogScreen> {
   }
 
   Widget _buildDateSelector() {
+    final today = DateTime.now();
+    final isAtToday = _selectedDate.year == today.year &&
+                      _selectedDate.month == today.month &&
+                      _selectedDate.day == today.day;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -231,8 +249,8 @@ class _MainLogScreenState extends State<MainLogScreen> {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
         ),
         IconButton(
-          icon: const Icon(Icons.chevron_right, color: Colors.green),
-          onPressed: _nextDate,
+          icon: Icon(Icons.chevron_right, color: isAtToday ? Colors.grey : Colors.green),
+          onPressed: isAtToday ? null : _nextDate,
         ),
       ],
     );
@@ -394,9 +412,15 @@ class _MainLogScreenState extends State<MainLogScreen> {
   Widget _buildWeightWidget() {
     return Consumer<LogDailyWeightController>(
       builder: (_, ctrl, __) {
-        if (ctrl.latestWeight != null && _weightController.text.isEmpty) {
-          _weightController.text = ctrl.latestWeight!.toStringAsFixed(1);
+        // Update the controller text only if it's empty or if the user just changed the date
+        if (_weightController.text.isEmpty || !_isEditing) {
+          if (ctrl.latestWeight != null) {
+            _weightController.text = ctrl.latestWeight!.toStringAsFixed(1);
+          } else {
+            _weightController.clear();
+          }
         }
+
         final isLogged = ctrl.isWeightLogged;
 
         return Container(
@@ -466,6 +490,7 @@ class _MainLogScreenState extends State<MainLogScreen> {
       },
     );
   }
+
 
   Widget _buildBottomNavBar() {
     return BottomNavigationBar(

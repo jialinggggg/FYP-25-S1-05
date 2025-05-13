@@ -6,6 +6,7 @@ import '../../../../backend/controllers/recipe_list_controller.dart';
 import '../../../../backend/controllers/recipe_search_controller.dart';
 import '../../../../../backend/entities/recipes.dart';
 import '../../../../../backend/entities/nutrition.dart';
+import '../../../../../backend/api/nutridigm_service.dart';
 import '../../../../../backend/api/spoonacular_service.dart';
 import 'view_recipe_detail_screen.dart';
 
@@ -27,6 +28,9 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
   final ScrollController _scrollController = ScrollController();
   final int _localRecipesPerLoad = 6;
   final int _spoonacularRecipesPerLoad = 4;
+  List<String> _userConditions = [];
+  List<String> _userAllergies = [];
+
 
   @override
   void initState() {
@@ -35,15 +39,24 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeControllers();
     });
-    _scrollController.addListener(_scrollListener);
   }
 
   Future<void> _initializeControllers() async {
     final spoonacularService = Provider.of<SpoonacularService>(context, listen: false);
-    _listController = RecipeListController(_supabase, spoonacularService);
+    final nutridigmService = Provider.of<NutridigmService>(context, listen: false);
+    _listController = RecipeListController(_supabase, spoonacularService, nutridigmService);
     _searchController = RecipeSearchController(_supabase, spoonacularService);
     _filterController = RecipeFilterController(_supabase, spoonacularService);
-    
+
+    final userMap = await _supabase
+      .from('user_medical_info')
+      .select()
+      .eq('uid', _supabase.auth.currentUser!.id)
+      .single();
+
+    _userConditions = List<String>.from(userMap['pre_existing'] ?? []);
+    _userAllergies = List<String>.from(userMap['allergies'] ?? []);
+
     await _loadInitialRecipes();
     _searchTextController.addListener(_handleSearchTextChanged);
 
@@ -55,11 +68,11 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
   }
 
   bool _shouldShowLoadMore() {
-  return _listController.hasMore && 
-         !_searchController.isSearching && 
-         !_filterController.isFilterApplied &&
-         !_listController.isLoading;
-}
+    return _listController.hasMore &&
+          !_searchController.isSearching &&
+          !_filterController.isFilterApplied;
+  }
+
 
   Future<void> _loadInitialRecipes() async {
     await _listController.loadInitialRecipes(
@@ -73,16 +86,6 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
       localLimit: _localRecipesPerLoad,
       spoonacularLimit: _spoonacularRecipesPerLoad,
     );
-  }
-
-  void _scrollListener() {
-    if (_scrollController.position.pixels == 
-        _scrollController.position.maxScrollExtent) {
-      if (_listController.hasMore && !_listController.isLoading && 
-          !_searchController.isSearching && !_filterController.isFilterApplied) {
-        _loadMoreRecipes();
-      }
-    }
   }
 
   void _handleSearchTextChanged() async {
@@ -134,6 +137,10 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
   void _showFilterBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true, // important for full-height support
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
@@ -147,6 +154,16 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
+
+                  // --- USER-BASED FILTERS ---
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'My Filters',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _buildFilterOption(
                     context,
                     icon: Icons.create,
@@ -180,6 +197,55 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
                     onTap: () {
                       setModalState(() {
                         _filterController.setFilter(RecipeFilterType.rated, 'Rated by Me');
+                      });
+                    },
+                  ),
+
+                  const Divider(height: 24),
+
+                  // --- SOURCE-BASED FILTERS ---
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Source Filters',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.medical_services,
+                    label: 'By Nutritionist',
+                    filterType: RecipeFilterType.byNutritionist,
+                    isSelected: _filterController.activeFilter == RecipeFilterType.byNutritionist,
+                    onTap: () {
+                      setModalState(() {
+                        _filterController.setFilter(RecipeFilterType.byNutritionist, 'By Nutritionist');
+                      });
+                    },
+                  ),
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.business,
+                    label: 'By Business',
+                    filterType: RecipeFilterType.byBusiness,
+                    isSelected: _filterController.activeFilter == RecipeFilterType.byBusiness,
+                    onTap: () {
+                      setModalState(() {
+                        _filterController.setFilter(RecipeFilterType.byBusiness, 'By Business');
+                      });
+                    },
+                  ),
+                  _buildFilterOption(
+                    context,
+                    icon: Icons.person,
+                    label: 'By Community',
+                    filterType: RecipeFilterType.byUser,
+                    isSelected: _filterController.activeFilter == RecipeFilterType.byUser,
+                    onTap: () {
+                      setModalState(() {
+                        _filterController.setFilter(RecipeFilterType.byUser, 'By Community');
                       });
                     },
                   ),
@@ -271,6 +337,15 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
             case RecipeFilterType.rated:
               label = 'Rated by Me';
               break;
+            case RecipeFilterType.byNutritionist:
+              label = 'By Nutritionist';
+              break;
+            case RecipeFilterType.byBusiness:
+              label = 'By Business';
+              break;
+            case RecipeFilterType.byUser:
+              label = 'By Community';
+              break;
           }
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -348,22 +423,28 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
   Widget _buildLoadMoreButton() {
     return Consumer<RecipeListController>(
       builder: (context, listController, child) {
-        if (_searchController.isSearching || _filterController.isFilterApplied) {
-          return const SizedBox.shrink();
-        }
-        
+        if (!_shouldShowLoadMore()) return const SizedBox.shrink();
+
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Center(
-            child: ElevatedButton(
-              onPressed: listController.isLoading ? null : _loadMoreRecipes,
-              child: listController.isLoading 
+            child: ElevatedButton.icon(
+              icon: listController.isLoading
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Load More Recipes'),
+                  : const Icon(Icons.expand_more),
+              label: Text(
+                listController.isLoading ? 'Loading...' : 'Show More Recipes',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: listController.isLoading ? null : _loadMoreRecipes,
             ),
           ),
         );
@@ -639,6 +720,34 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
       },
     );
   }
+  Widget _buildRecommendationNote() {
+    if (_userConditions.isEmpty && _userAllergies.isEmpty) return const SizedBox.shrink();
+
+    final conditionText = _userConditions.isNotEmpty
+        ? 'pre-existing condition${_userConditions.length > 1 ? 's' : ''} ${_userConditions.join(', ')}'
+        : '';
+    final allergyText = _userAllergies.isNotEmpty
+        ? 'allerg${_userAllergies.length > 1 ? 'ies' : 'y'} ${_userAllergies.join(', ')}'
+        : '';
+
+    final joinedText = [conditionText, allergyText].where((s) => s.isNotEmpty).join(' and ');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green[50],
+        border: Border.all(color: Colors.green.shade100),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'These recipes are recommended based on your $joinedText.',
+        style: const TextStyle(fontSize: 14, color: Colors.green, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
 
   Widget _buildNutritionFact({
     required IconData icon,
@@ -751,6 +860,7 @@ class _MainRecipeScreenState extends State<MainRecipeScreen> {
               _buildSearchBar(),
               const SizedBox(height: 8),
               _buildSearchFilterIndicator(),  // <-- Indicator inserted here
+              _buildRecommendationNote(),
               
               // Loading and list content
               if (_isLoading)

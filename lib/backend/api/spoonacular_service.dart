@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../entities/recipes.dart';
 import '../entities/analyzed_instruction.dart';
@@ -7,7 +8,7 @@ import '../entities/nutrition.dart';
 
 
 class SpoonacularService {
-  static const String _apiKey = 'c7d01e732db448c09ab3be35a5aef922'; // Replace with your actual API key
+  static const String _apiKey = 'fede250789e24f828573be12cb0d08a8'; // Replace with your actual API key
   static const String _baseUrl = 'https://api.spoonacular.com';
 
   Future<List<Map<String, dynamic>>> searchIngredients({
@@ -94,6 +95,7 @@ class SpoonacularService {
   Future<List<Recipes>> fetchRecipes({
     String? query,
     int limit = 5,
+    int? offset,
     String? type, // For meal types: 'breakfast', 'lunch', etc.
     String? diet, // For dietary restrictions
     String? cuisine, // For specific cuisines
@@ -266,4 +268,84 @@ class SpoonacularService {
     }
     return Nutrition(nutrients: nutrients);
   }
+
+  Future<List<Recipes>> fetchRecipesWithConditions({
+    required List<String> recommendedIngredients,
+    required List<String> allergies,
+    List<String>? diets,
+    int limit = 5,
+    int offset = 0,
+  }) async {
+    final List<Recipes> allRecipes = [];
+    final intolerances = allergies.join(',');
+    final random = Random();
+
+    for (final ingredient in recommendedIngredients) {
+      final response = await http.get(
+        Uri.parse(
+          '$_baseUrl/recipes/complexSearch?apiKey=$_apiKey'
+          '&query=${Uri.encodeComponent(ingredient)}'
+          '&number=1'
+          '&offset=${random.nextInt(50)}'
+          '&intolerances=$intolerances'
+          '${diets != null && diets.isNotEmpty ? '&diet=${Uri.encodeComponent(diets.join(','))}' : ''}'
+          '&addRecipeNutrition=true'
+          '&fillIngredients=true'
+          '&instructionsRequired=true',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['results'] != null && data['results'] is List && data['results'].isNotEmpty) {
+          final recipeData = data['results'][0];
+
+          // Convert to Recipes model (you likely have this logic already):
+          final recipe = Recipes(
+            id: recipeData['id'] as int,
+            title: recipeData['title'],
+            image: recipeData['image'],
+            imageType: recipeData['imageType'] ?? 'jpg',
+            readyInMinutes: recipeData['readyInMinutes'] ?? 0,
+            servings: recipeData['servings'] ?? 1,
+            sourceName: recipeData['sourceName'] ?? 'Spoonacular',
+            sourceType: "spoonacular",
+            analyzedInstructions: (recipeData['analyzedInstructions'] as List?)?.map((i) =>
+                AnalyzedInstruction(
+                  name: i['name'] ?? '',
+                  steps: (i['steps'] as List).map((step) =>
+                      InstructionStep(
+                        number: step['number'],
+                        step: step['step'],
+                      )).toList(),
+                )).toList(),
+            extendedIngredients: (recipeData['extendedIngredients'] as List?)?.map((i) =>
+                ExtendedIngredient(
+                  id: i['id'],
+                  name: i['name'] ?? i['original'] ?? 'Unknown ingredient',
+                  amount: (i['amount'] as num).toDouble(),
+                  unit: i['unit'] ?? '',
+                )).toList(),
+            diets: List<String>.from(recipeData['diets'] ?? []),
+            dishTypes: List<String>.from(recipeData['dishTypes'] ?? []),
+            nutrition: recipeData['nutrition'] != null
+                ? Nutrition(
+                    nutrients: (recipeData['nutrition']['nutrients'] as List).map<Nutrient>((n) =>
+                      Nutrient(
+                        title: n['name'],
+                        amount: (n['amount'] as num).toDouble(),
+                        unit: n['unit'],
+                      )).toList(),
+                  )
+                : null,
+          );
+
+          allRecipes.add(recipe);
+        }
+      }
+    }
+
+    return allRecipes;
+  }
+
 }

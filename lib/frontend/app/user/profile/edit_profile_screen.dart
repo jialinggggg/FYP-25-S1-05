@@ -43,6 +43,8 @@ class _EditProfileFormState extends State<_EditProfileForm> {
   final _formKey = GlobalKey<FormState>();
   late final Future<List<String>> _countriesFuture;
 
+  String? _birthDateError;
+
   @override
   void initState() {
     super.initState();
@@ -149,8 +151,13 @@ class _EditProfileFormState extends State<_EditProfileForm> {
                           // Birth Date
                           FormField<DateTime>(
                             initialValue: c.birthDate,
-                            validator: (v) =>
-                                v == null ? 'Pick a date' : null,
+                            validator: (v) {
+                              if (v == null) return 'Pick a date';
+                              final now = DateTime.now();
+                              final age = now.year - v.year - ((now.month > v.month || (now.month == v.month && now.day >= v.day)) ? 0 : 1);
+                              if (age < 18) return 'You must be at least 18 years old';
+                              return null;
+                            },
                             builder: (field) {
                               return InputDecorator(
                                 decoration: InputDecoration(
@@ -158,43 +165,50 @@ class _EditProfileFormState extends State<_EditProfileForm> {
                                   border: border,
                                   errorText: field.errorText,
                                   focusedBorder: border.copyWith(
-                                    borderSide:
-                                        const BorderSide(
-                                            color:
-                                                Colors.green),
+                                    borderSide: const BorderSide(color: Colors.green),
                                   ),
                                 ),
                                 child: InkWell(
                                   onTap: () async {
-                                    final now =
-                                        DateTime.now();
-                                    final picked =
-                                        await showDatePicker(
+                                    final now = DateTime.now();
+                                    final picked = await showDatePicker(
                                       context: context,
-                                      initialDate:
-                                          field.value ??
-                                              now,
-                                      firstDate:
-                                          DateTime(1900),
+                                      initialDate: field.value ?? DateTime(2000),
+                                      firstDate: DateTime(1900),
                                       lastDate: now,
                                     );
                                     if (picked != null) {
-                                      c.birthDate = picked;
-                                      field.didChange(
-                                          picked);
+                                      final age = now.year - picked.year - ((now.month > picked.month || (now.month == picked.month && now.day >= picked.day)) ? 0 : 1);
+                                      if (age < 18) {
+                                        setState(() {
+                                          _birthDateError = 'You must be at least 18 years old';
+                                        });
+                                        field.didChange(null); // Clear invalid value
+                                      } else {
+                                        c.birthDate = picked;
+                                        field.didChange(picked);
+                                        setState(() => _birthDateError = null);
+                                      }
                                     }
                                   },
                                   child: Text(
                                     field.value == null
                                         ? 'Pick date'
                                         : '${field.value!.year}-${field.value!.month.toString().padLeft(2, '0')}-${field.value!.day.toString().padLeft(2, '0')}',
-                                    style: const TextStyle(
-                                        fontSize: 16),
+                                    style: const TextStyle(fontSize: 16),
                                   ),
                                 ),
                               );
                             },
                           ),
+                          if (_birthDateError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 5),
+                              child: Text(
+                                _birthDateError!,
+                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                              ),
+                            ),
                           const SizedBox(height: 16),
 
                           // Gender

@@ -34,7 +34,7 @@ class _EditMedicalHistForm extends StatefulWidget {
 class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
   static const _preExistingOptions = [
     'High blood pressure',
-    'Type 1 diabetes',
+    'Type 2 diabetes',
   ];
 
   late final EditMedicalHistController _ctrl;
@@ -65,11 +65,13 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
       ..clear()
       ..addAll(_ctrl.preExistingConditions);
 
-    for (var c in _allergyCtrls){
+    // Dispose all allergy controllers before clearing the lists
+    for (var c in _allergyCtrls) {
       c.dispose();
-      _allergyCtrls.clear();
-      _allergySuggestions.clear();
     }
+
+    _allergyCtrls.clear();
+    _allergySuggestions.clear();
 
     for (var allergy in _ctrl.allergies) {
       _allergyCtrls.add(TextEditingController(text: allergy));
@@ -131,7 +133,7 @@ class __EditMedicalHistFormState extends State<_EditMedicalHistForm> {
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

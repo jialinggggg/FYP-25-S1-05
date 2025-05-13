@@ -22,6 +22,7 @@ class EditProfileController extends ChangeNotifier {
   DateTime? _birthDate;
   double _weight = 0.0;
   double _height = 0.0;
+  
 
   // --- Getters ---
   bool get isLoading => _isLoading;

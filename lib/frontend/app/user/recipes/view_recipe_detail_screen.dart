@@ -49,14 +49,14 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
       value: _controller,
       child: Consumer<ViewRecipeDetailController>(
         builder: (context, controller, _) {
-          // 1) While loading, just show a blank Scaffold + spinner:
+          // 1. Show loading spinner
           if (controller.isLoading) {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
           }
 
-          // 2) If there was an error loading, show your error UI:
+          // 2. Show error message if any
           if (controller.error != null) {
             return Scaffold(
               appBar: AppBar(),
@@ -76,7 +76,28 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
             );
           }
 
-          // 3) Otherwise loading is done and no error—render your real screen:
+          // 3. Show allergy popup if there's a conflict
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (controller.hasAllergyConflict && controller.matchedAllergen != null) {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Allergy Warning'),
+                  content: Text(
+                    'This recipe contains ingredients related to your allergy: "${controller.matchedAllergen}"',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          });
+
+          // 4. Main content when loaded and valid
           return WillPopScope(
             onWillPop: () async {
               Navigator.pop(context, _currentRecipe);
@@ -89,7 +110,9 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
                   _buildBody(),
                   if (!controller.isOwner)
                     Positioned(
-                      left: 16, right: 16, bottom: 16,
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
                       child: _buildFavoriteButton(),
                     ),
                 ],
@@ -100,6 +123,7 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
       ),
     );
   }
+
 
 
   AppBar _buildAppBar() {
@@ -174,7 +198,6 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
                       onPressed: () => Navigator.pop(context),
                       child: const Text('Go Back'),
                     ),
-                    const SizedBox(width: 16),
                   ],
                 ),
               ],
@@ -186,11 +209,39 @@ class _ViewRecipeDetailScreenState extends State<ViewRecipeDetailScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final recipe = _currentRecipe;
+        final recipe = controller.recipe;
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 🔔 Hidden warning for owner
+              if (controller.isOwner && controller.isHidden)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[100],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning, color: Colors.orange),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'This recipe is hidden from the community as it has been verified to violate our guidelines. '
+                            'Please email support@eatwell.com for more information.',
+                            style: const TextStyle(color: Colors.black87, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               _buildRecipeImage(recipe),
               _buildRecipeHeader(recipe),
               _buildNutritionSection(recipe),

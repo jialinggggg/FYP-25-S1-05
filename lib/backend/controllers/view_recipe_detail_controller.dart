@@ -17,7 +17,14 @@ class ViewRecipeDetailController with ChangeNotifier {
   int _ratingCount = 0;
   double _averageRating = 0.0;
   String? _error;
+  bool _isHidden = false;
+  List<String> _userAllergies = [];
+  String? _matchedAllergen; // this will hold the first matched allergen
+  bool _hasAllergyConflict = false;
 
+  bool get hasAllergyConflict => _hasAllergyConflict;
+  String? get matchedAllergen => _matchedAllergen;
+  bool get isHidden => _isHidden;
   Recipes get recipe => _recipe;
   bool get isLoading => _isLoading;
   bool get isFavourite => _isFavourite;
@@ -43,13 +50,28 @@ class ViewRecipeDetailController with ChangeNotifier {
     notifyListeners();
 
     try {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) throw Exception("User not logged in");
+
+      // 1. Load user allergies
+      final userMap = await _supabase
+          .from('user_medical_info')
+          .select()
+          .eq('uid', currentUser.id)
+          .maybeSingle();
+
+      if (userMap != null) {
+        _userAllergies = List<String>.from(userMap['allergies'] ?? []);
+      }
+
+      // 2. Check for allergens in the recipe
+      _checkRecipeForAllergies();
+
+      // 3. Continue loading
       _isExternalRecipe = _recipe.sourceType?.toLowerCase() == 'spoonacular';
 
-      final currentUser = _supabase.auth.currentUser;
-
-      // Load all data in parallel for better performance
       await Future.wait([
-        if (currentUser != null) _checkFavoriteStatus(),
+        _checkFavoriteStatus(),
         _loadReviewsAndRatings(),
         _loadFavoriteCount(),
         _loadRatingStats(),
@@ -57,6 +79,7 @@ class ViewRecipeDetailController with ChangeNotifier {
 
       if (!_isExternalRecipe && currentUser != null) {
         _isOwner = await _isOwnerCheck();
+        await _checkIfRecipeIsHidden();
       }
 
       _isLoading = false;
@@ -67,6 +90,7 @@ class ViewRecipeDetailController with ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   Future<bool> isCurrentUser(RecipeRating review) async {
     final currentUser = _supabase.auth.currentUser;
@@ -259,4 +283,34 @@ class ViewRecipeDetailController with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> _checkIfRecipeIsHidden() async {
+    try {
+      final response = await _supabase
+          .from('recipes_hide')
+          .select('recipe_id')
+          .eq('recipe_id', _recipe.id)
+          .eq('source_type', _recipe.sourceType!)
+          .maybeSingle();
+
+      _isHidden = response != null;
+    } catch (e) {
+      _isHidden = false;
+    }
+  }
+
+  void _checkRecipeForAllergies() {
+    final ingredients = _recipe.extendedIngredients ?? [];
+    for (final allergy in _userAllergies) {
+      final found = ingredients.any(
+        (i) => i.name.toLowerCase().contains(allergy.toLowerCase()),
+      );
+      if (found) {
+        _hasAllergyConflict = true;
+        _matchedAllergen = allergy;
+        break;
+      }
+    }
+  }
+
 }

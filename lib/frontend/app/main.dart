@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'package:nutri_app/backend/api/spoonacular_service.dart';
+import 'package:nutri_app/backend/api/nutridigm_service.dart';
 import 'package:nutri_app/backend/signup/nutri_signup_state.dart';
 import 'package:nutri_app/backend/signup/biz_signup_state.dart';
 import 'package:nutri_app/backend/signup/signup_state.dart';
@@ -89,11 +90,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
     final spoonacularService = SpoonacularService();
+    final nutridigmService = NutridigmService();
 
     return MultiProvider(
       providers: [
         // Core repositories
         Provider(create: (_) => spoonacularService),
+        Provider(create: (_) => nutridigmService),
         Provider(create: (_) => InputValidationService()),
         
         // Controllers (state management)
@@ -103,7 +106,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FetchRecipeForMealLogController(supabase, spoonacularService)),
         ChangeNotifierProvider(create: (_) => SearchRecipeByNameController(supabase, spoonacularService)),
         ChangeNotifierProvider(create: (_) => LogMealController(supabase, spoonacularService)),
-        ChangeNotifierProvider(create: (_) => RecipeListController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => RecipeListController(supabase, spoonacularService, nutridigmService)),
         ChangeNotifierProvider(create: (_) => RecipeSearchController(supabase, spoonacularService)),
         ChangeNotifierProvider(create: (_) => RecipeFilterController(supabase, spoonacularService)),
         ChangeNotifierProvider(create: (_) => ReportRecipeController(supabase)),

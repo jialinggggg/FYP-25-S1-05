@@ -9,6 +9,9 @@ enum RecipeFilterType {
   custom,
   favourite,
   rated,
+  byNutritionist,
+  byBusiness,
+  byUser,
 }
 
 class RecipeFilterController with ChangeNotifier {
@@ -64,34 +67,74 @@ class RecipeFilterController with ChangeNotifier {
     final currentUser = _supabase.auth.currentUser;
     if (currentUser == null) throw Exception('User not authenticated');
 
+    final hiddenIds = await _getHiddenRecipeIdsByType([
+      'user', 'nutritionist', 'business', 'spoonacular'
+    ]);
+
+    List<Recipes> all = [];
+
     switch (filterType) {
       case RecipeFilterType.custom:
-        return await _getUserRecipes(currentUser.id);
+        final own = await _getUserRecipes(currentUser.id);
+        all = own.where((r) => !hiddenIds.contains(r.id)).toList();
+        break;
+
       case RecipeFilterType.favourite:
-        final favourites = await _getFavourites(currentUser.id);
-        final recipes = <Recipes>[];
-        for (final fav in favourites) {
-          try {
-            final recipe = await _getRecipe(fav.recipeId, fav.sourceType);
-            recipes.add(recipe);
-          } catch (e) {
-            continue;
+        final favs = await _getFavourites(currentUser.id);
+        for (final fav in favs) {
+          if (!hiddenIds.contains(fav.recipeId)) {
+            try {
+              final r = await _getRecipe(fav.recipeId, fav.sourceType);
+              all.add(r);
+            } catch (_) {}
           }
         }
-        return recipes;
+        break;
+
       case RecipeFilterType.rated:
         final ratings = await _getRatingsByUser(currentUser.id);
-        final recipes = <Recipes>[];
         for (final rating in ratings) {
-          try {
-            final recipe = await _getRecipe(rating.recipeId, rating.sourceType);
-            recipes.add(recipe);
-          } catch (e) {
-            continue;
+          if (!hiddenIds.contains(rating.recipeId)) {
+            try {
+              final r = await _getRecipe(rating.recipeId, rating.sourceType);
+              all.add(r);
+            } catch (_) {}
           }
         }
-        return recipes;
+        break;
+
+      case RecipeFilterType.byNutritionist:
+      case RecipeFilterType.byBusiness:
+      case RecipeFilterType.byUser:
+        final type = {
+          RecipeFilterType.byNutritionist: 'nutritionist',
+          RecipeFilterType.byBusiness: 'business',
+          RecipeFilterType.byUser: 'user',
+        }[filterType]!; // Add ! to assert it's never null
+
+        final response = await _supabase
+            .from('recipes')
+            .select()
+            .eq('source_type', type)
+            .order('created_at', ascending: false);
+
+        all = response
+            .map<Recipes>((map) => Recipes.fromMap(map))
+            .where((r) => !hiddenIds.contains(r.id))
+            .toList();
+        break;
     }
+
+    return all;
+  }
+
+  Future<Set<int>> _getHiddenRecipeIdsByType(List<String> types) async {
+    final response = await _supabase
+        .from('recipes_hide')
+        .select('recipe_id')
+        .inFilter('source_type', ['nutritionist', 'business']);
+
+    return response.map((r) => r['recipe_id'] as int).toSet();
   }
 
   Future<List<Recipes>> _getUserRecipes(String uid) async {

@@ -14,7 +14,7 @@ class SignupMedState extends State<SignupMed> {
   // All possible pre-existing conditions
   static const List<String> _preExistingOptions = [
     'High blood pressure',
-    'Type 1 diabetes',
+    'Type 2 diabetes',
   ];
 
   // Pre-existing conditions selections

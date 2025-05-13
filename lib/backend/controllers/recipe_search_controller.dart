@@ -35,9 +35,19 @@ class RecipeSearchController with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Get hidden recipe IDs
+      final hiddenLocalIds = await _getHiddenRecipeIdsByType(['user', 'business', 'nutritionist']);
+      final hiddenSpoonacularIds = await _getHiddenRecipeIdsByType(['spoonacular']);
+
+      // LOCAL search
       final localResults = await _searchRecipesByName(query);
+      final filteredLocal = localResults.where((r) => !hiddenLocalIds.contains(r.id)).toList();
+
+      // SPOONACULAR search
       final spoonacularResults = await _spoonacularService.fetchRecipes(query: query);
-      _searchResults = [...localResults, ...spoonacularResults];
+      final filteredSpoonacular = spoonacularResults.where((r) => !hiddenSpoonacularIds.contains(r.id)).toList();
+
+      _searchResults = [...filteredLocal, ...filteredSpoonacular];
       _error = null;
     } catch (e) {
       _error = e.toString();
@@ -56,7 +66,6 @@ class RecipeSearchController with ChangeNotifier {
     notifyListeners();
   }
 
-  // New method: Search for recipes directly in Supabase
   Future<List<Recipes>> _searchRecipesByName(String queryText, {int limit = 10}) async {
     try {
       final response = await _supabase
@@ -69,5 +78,14 @@ class RecipeSearchController with ChangeNotifier {
     } catch (e) {
       throw Exception('Failed to search recipes: $e');
     }
+  }
+
+  Future<Set<int>> _getHiddenRecipeIdsByType(List<String> types) async {
+    final response = await _supabase
+        .from('recipes_hide')
+        .select('recipe_id')
+        .inFilter('source_type', types);
+
+    return response.map((r) => r['recipe_id'] as int).toSet();
   }
 }
