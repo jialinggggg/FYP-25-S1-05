@@ -296,7 +296,6 @@ class RecipeManagementPageState extends State<RecipeManagementPage> with SingleT
       itemCount: filteredProducts.length,
       itemBuilder: (context, index) {
         final product = filteredProducts[index];
-        final isHidden = product['hidden'] ?? false;
 
         return GestureDetector(
           onTap: () {

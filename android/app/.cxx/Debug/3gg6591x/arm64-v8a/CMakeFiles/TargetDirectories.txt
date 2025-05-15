@@ -1,0 +1,2 @@
+C:/Users/clara/StudioProjects/FYP-25-S1-05/android/app/.cxx/Debug/3gg6591x/arm64-v8a/CMakeFiles/edit_cache.dir
+C:/Users/clara/StudioProjects/FYP-25-S1-05/android/app/.cxx/Debug/3gg6591x/arm64-v8a/CMakeFiles/rebuild_cache.dir

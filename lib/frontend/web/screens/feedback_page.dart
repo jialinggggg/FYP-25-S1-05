@@ -188,7 +188,6 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
         final createdAt = DateFormat('yyyy-MM-dd').format(DateTime.parse(report['created_at']));
         final status = report['status'] ?? 'pending';
         final reporter = report['submitter_name'] ?? 'Unknown';
-        final imageUrl = report['image']?.toString() ?? '';
 
 
         return GestureDetector(
