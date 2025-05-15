@@ -35,7 +35,7 @@ dependencies:
   dropdown_search: ^5.0.6
   provider: ^6.1.0
   flutter_stripe: ^10.1.0 # or the latest version
-  
+  collection: ^1.17.0
   
 
   # The following adds the Cupertino Icons font to your application.

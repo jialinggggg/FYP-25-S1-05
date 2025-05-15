@@ -51,7 +51,7 @@ class Recipe {
       readyInMinutes: map['ready_in_minutes'] as int,  // Added mapping
       ingredients: Map<String, dynamic>.from(map['ingredients'] as Map),
       instructions: Map<String, dynamic>.from(map['instructions'] as Map),
-      dishType: map['dish_type'] as String,
+      dishType: map['dish_types'] as String,
       diets: map['diets'] != null ? List<String>.from(map['diets'] as List) : null,
       sourceName: map['source_name'] as String,
       sourceType: map['source_type'] as String,
@@ -73,7 +73,7 @@ class Recipe {
       'ready_in_minutes': readyInMinutes,  // Added to map
       'ingredients': ingredients,
       'instructions': instructions,
-      'dish_type': dishType,
+      'dish_types': dishType,
       'diets': diets,
       'source_name': sourceName,
       'source_type': sourceType,

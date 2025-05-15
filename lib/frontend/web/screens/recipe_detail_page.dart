@@ -1,88 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:nutri_app/backend/controller/recipe_management_controller.dart';
+import 'package:nutri_app/backend/controller/recipe_report_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nutri_app/backend/api/spoonacular_api_service.dart';
 
 class RecipeDetailPage extends StatefulWidget {
-  final Map<String, String> recipe;
-  final Function(String, String) onStatusChanged;
+  final Map<String, dynamic> recipe;
+  final RecipeManagementController controller;
 
-  const RecipeDetailPage({super.key, required this.recipe, required this.onStatusChanged});
+  const RecipeDetailPage({super.key, required this.recipe, required this.controller});
 
   @override
   RecipeDetailPageState createState() => RecipeDetailPageState();
 }
 
 class RecipeDetailPageState extends State<RecipeDetailPage> {
-  late String status;
+  late RecipeReportController reportController;
+  bool isHidden = false;
 
   @override
   void initState() {
     super.initState();
-    status = widget.recipe["status"]!;
-  }
-
-  ///Function to Update Status
-  void _updateStatus(String newStatus) {
-    setState(() {
-      status = newStatus;
-    });
-
-    widget.onStatusChanged(widget.recipe["title"]!, newStatus);
+    reportController = RecipeReportController(
+      supabase: Supabase.instance.client,
+      apiService: SpoonacularApiService(),
+    );
+    isHidden = widget.recipe['hidden'] ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    bool isWideScreen = MediaQuery.of(context).size.width > 600;
+    final recipe = widget.recipe;
+    final List<dynamic> analyzedInstructions = recipe['analyzed_instructions'] ?? [];
+    final List<dynamic> extendedIngredients = recipe['extended_ingredients'] ?? [];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Recipe Details",
-          style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.green[700],
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Recipe',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (recipe['hidden'] == true)
+              Container(
+                margin: EdgeInsets.only(left: 10),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  "HIDDEN",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+          ],
+        ),
+        backgroundColor: Colors.green[700],
       ),
-      body: SingleChildScrollView(
-        padding: isWideScreen
-            ? EdgeInsets.symmetric(horizontal: 100, vertical: 20)
-            : EdgeInsets.all(20),
+      body: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ///Recipe Image
             Center(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(15),
-                child: Image.asset(
-                  widget.recipe["image"]!,
+                child: Image.network(
+                  recipe['image'] ?? 'https://via.placeholder.com/300',
                   width: double.infinity,
                   height: 250,
                   fit: BoxFit.cover,
                 ),
               ),
             ),
-            SizedBox(height: 20),
-
-            ///Recipe Title
+            const SizedBox(height: 20),
             Text(
-              widget.recipe["title"]!,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
+              recipe['title'] ?? 'Unknown Title',
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black),
             ),
-            SizedBox(height: 10),
-
-            ///Recipe Calories, Time, Difficulty
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    Icon(Icons.rice_bowl, color: Colors.black54, size: 20),
+                    SizedBox(width: 5),
+                    Text('${recipe['servings'] ?? 'Unknown'} servings', style: TextStyle(color: Colors.black54)),
+                  ],
+                ),
+                SizedBox(width: 15),
+                Row(
+                  children: [
                     Icon(Icons.local_fire_department, color: Colors.black54, size: 20),
                     SizedBox(width: 5),
-                    Text("302 kcal", style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    Text(
+                      '${_calculateTotalCalories(recipe['extended_ingredients'])} kcal',
+                      style: TextStyle(color: Colors.black54),
+                    ),
                   ],
                 ),
                 SizedBox(width: 15),
@@ -90,81 +117,43 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
                   children: [
                     Icon(Icons.access_time, color: Colors.black54, size: 20),
                     SizedBox(width: 5),
-                    Text("10 minutes", style: TextStyle(fontSize: 14, color: Colors.black54)),
-                  ],
-                ),
-                SizedBox(width: 15),
-                Row(
-                  children: [
-                    Icon(Icons.assignment_turned_in, color: Colors.black54, size: 20),
-                    SizedBox(width: 5),
-                    Text("Easy", style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    Text('${recipe['ready_in_minutes'] ?? 'Unknown'} minutes', style: TextStyle(color: Colors.black54)),
                   ],
                 ),
               ],
             ),
             SizedBox(height: 20),
+            Text('Created on ${recipe['created_at']?.split('T')[0] ?? 'Unknown'} by ${recipe['submitter_name'] ?? 'Unknown'}',
+                style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            const SizedBox(height: 20),
+            const Divider(color: Colors.black26),
+            const SizedBox(height: 20),
 
-            ///Recipe Description
-            Text(
-              "Crispy toast topped with your favorite morning flavors—simple and satisfying.",
-              style: TextStyle(fontSize: 16, color: Colors.black87),
-            ),
-            SizedBox(height: 15),
-
-            Divider(color: Colors.black26),
-            SizedBox(height: 15),
-
-            ///Current Status
-            Row(
-              children: [
-                Text(
-                  "Status: ",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: status == "Approved"
-                        ? Colors.green
-                        : status == "Rejected"
-                        ? Colors.red
-                        : Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 20),
-
-            ///Ingredients Section
+            /// Ingredients Section
             Text(
               "Ingredients",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
             ),
-            SizedBox(height: 10),
-            _buildBulletPoint("2 slices of bread (whole grain, sourdough, or multigrain)"),
-            _buildBulletPoint("1 egg"),
-            _buildBulletPoint("1/2 an avocado"),
-            _buildBulletPoint("Handful of spinach"),
-            _buildBulletPoint("Salt and pepper, to taste"),
-            SizedBox(height: 20),
+            const SizedBox(height: 10),
+            if (extendedIngredients.isNotEmpty)
+              for (final ingredient in extendedIngredients)
+                _buildBulletPoint(
+                  "${ingredient['amount']} ${ingredient['unit']} ${ingredient['name']}",
+                ),
+            const SizedBox(height: 20),
 
-            ///Instructions Section
+            /// Instructions Section
             Text(
-              "Instructions",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+              'Instructions',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
             ),
-            SizedBox(height: 10),
-            _buildNumberedStep(1, "Toast the 2 slices of bread until golden and crispy. You can use a toaster or a grill pan for extra crispiness."),
-            _buildNumberedStep(2, "While the bread is toasting, heat a small non-stick pan over medium heat. Crack the egg into the pan and cook it to your liking (fried, scrambled, or poached). Season with salt and pepper."),
-            _buildNumberedStep(3, "While the egg is cooking, scoop out the flesh of the avocado and mash it in a bowl. Add a pinch of salt and pepper to taste, and mix it up."),
-            _buildNumberedStep(4, "In the same pan used for the egg, quickly sauté the spinach for about 1-2 minutes until wilted. You can add a little olive oil or butter if desired."),
-            _buildNumberedStep(5, "Serve it on a plate. Season with a little more salt and pepper on top of the egg. Optionally, add some chili flakes or a drizzle of olive oil for extra flavor."),
-            SizedBox(height: 30),
-
-            ///Approval Buttons
+            const SizedBox(height: 10),
+            if (analyzedInstructions.isNotEmpty)
+              for (final section in analyzedInstructions)
+                for (final step in section['steps'])
+                  _buildNumberedStep(step['number'], step['step']),
+            const SizedBox(height: 30),
+            /// Hide/Unhide Buttons
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 300),
               child: Container(
@@ -174,30 +163,36 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
                 ),
                 child: Row(
                   children: [
-                    ///Approve Button
+                    /// Hide Button
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          _updateStatus("Approved");
+                        onPressed: () async {
+                          if (!isHidden) {
+                            await reportController.hideRecipe(recipe['id'], recipe['source_type'] ?? 'unknown', recipe['created_at'] ?? DateTime.now().toIso8601String());
+                            setState(() {
+                              isHidden = true;
+                              recipe['hidden'] = true;
+                            });
+                          }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: status == "Approved" ? Colors.green : Colors.white,
+                          backgroundColor: isHidden ? Colors.red : Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.horizontal(left: Radius.circular(30)),
                           ),
                           padding: EdgeInsets.symmetric(vertical: 12),
-                          side: status == "Approved" ? BorderSide.none : BorderSide(color: Colors.black26),
+                          side: isHidden ? BorderSide.none : BorderSide(color: Colors.black26),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.check, color: status == "Approved" ? Colors.white : Colors.black87, size: 18),
+                            Icon(Icons.visibility_off, color: isHidden ? Colors.white : Colors.black87, size: 18),
                             SizedBox(width: 5),
                             Text(
-                              "Approved",
+                              "Hide",
                               style: TextStyle(
                                 fontSize: 16,
-                                color: status == "Approved" ? Colors.white : Colors.black87,
+                                color: isHidden ? Colors.white : Colors.black87,
                               ),
                             ),
                           ],
@@ -205,30 +200,36 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
                       ),
                     ),
 
-                    ///Reject Button
+                    /// Unhide Button
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          _updateStatus("Rejected");
+                        onPressed: () async {
+                          if (isHidden) {
+                            await reportController.unhideRecipe(recipe['id']);
+                            setState(() {
+                              isHidden = false;
+                              recipe['hidden'] = false;
+                            });
+                          }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: status == "Rejected" ? Colors.red : Colors.white,
+                          backgroundColor: isHidden ? Colors.white : Colors.green,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.horizontal(right: Radius.circular(30)),
                           ),
                           padding: EdgeInsets.symmetric(vertical: 12),
-                          side: status == "Rejected" ? BorderSide.none : BorderSide(color: Colors.black26),
+                          side: isHidden ? BorderSide(color: Colors.black26) : BorderSide.none,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.close, color: status == "Rejected" ? Colors.white : Colors.black87, size: 18),
+                            Icon(Icons.visibility, color: isHidden ? Colors.black87 : Colors.white, size: 18),
                             SizedBox(width: 5),
                             Text(
-                              "Reject",
+                              "Unhide",
                               style: TextStyle(
                                 fontSize: 16,
-                                color: status == "Rejected" ? Colors.white : Colors.black87,
+                                color: isHidden ? Colors.black87 : Colors.white,
                               ),
                             ),
                           ],
@@ -239,13 +240,14 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  ///Bullet Point List
+  /// Bullet Point List
   Widget _buildBulletPoint(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
@@ -260,7 +262,7 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
     );
   }
 
-  ///Numbered Steps
+  /// Numbered Steps
   Widget _buildNumberedStep(int step, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
@@ -273,5 +275,23 @@ class RecipeDetailPageState extends State<RecipeDetailPage> {
         ],
       ),
     );
+  }
+
+  /// Calculate Total Calories
+  int _calculateTotalCalories(List<dynamic>? ingredients) {
+    if (ingredients == null || ingredients.isEmpty) return 0;
+
+    double totalCalories = 0;
+    for (final ingredient in ingredients) {
+      final nutrients = ingredient['nutrition']?['nutrients'] ?? [];
+      for (final nutrient in nutrients) {
+        if (nutrient['title'] == 'Calories') {
+          totalCalories += nutrient['amount'];
+          break;
+        }
+      }
+    }
+
+    return totalCalories.round();
   }
 }

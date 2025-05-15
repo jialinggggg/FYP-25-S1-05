@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'admin_statistics_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../backend/supabase/auth_user_service.dart';
-import '../../../backend/supabase/accounts_service.dart';
+import 'package:nutri_app/backend/controller/login_controller.dart';
 
 class LoginPage extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  final AuthUsersService _authUsersService = AuthUsersService(Supabase.instance.client);
-  final AccountService _accountService = AccountService(Supabase.instance.client);
+  final LoginController _loginController = LoginController(client: Supabase.instance.client);
 
   LoginPage({super.key});
 
@@ -26,24 +24,7 @@ class LoginPage extends StatelessWidget {
     }
 
     try {
-      // Log in the user
-      await _authUsersService.logIn(
-        email: email,
-        password: password,
-      );
-
-      // Check if the user is an admin
-      final isAdmin = await _accountService.isAdmin();
-      if (!isAdmin) {
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unauthorized: Only admins can log in')),
-        );
-        await _authUsersService.logOut(); // Log out non-admin users
-        return;
-      }
-
-      // Redirect to the admin statistics page
+      await _loginController.loginAsAdmin(email, password);
       if (!context.mounted) return;
       Navigator.pushReplacement(
         context,

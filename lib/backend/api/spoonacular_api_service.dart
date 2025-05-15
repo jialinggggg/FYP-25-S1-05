@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import '../entities/spoonacular_recipe.dart';
 
 class SpoonacularApiService {
-  static const String _apiKey = '4a3dbd9522034168aad4673d5bf2e193';
+  static const String _apiKey = '55edb721591c4c299c9df5fd025b9085';
   static const String _baseUrl = 'https://api.spoonacular.com';
 
   Future<List<Map<String, dynamic>>> searchIngredients({
@@ -90,19 +90,31 @@ class SpoonacularApiService {
     }
   }
 
-  Future<SpoonacularRecipe?> fetchRecipeById(int recipeId) async {
+  Future<Map<String, dynamic>?> fetchRecipeById(int recipeId) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/recipes/$recipeId/information?includeNutrition=true&apiKey=$_apiKey'),
     );
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      return SpoonacularRecipe.fromJson(data);
+
+      // Convert to Map<String, dynamic> in your expected format
+      return {
+        'id': data['id'],
+        'title': data['title'],
+        'image': data['image'],
+        'ready_in_minutes': data['readyInMinutes'],
+        'servings': data['servings'],
+        'extended_ingredients': data['extendedIngredients'],
+        'analyzed_instructions': data['analyzedInstructions'],
+        'source_type': 'spoonacular',
+      };
     } else {
       print('Failed to fetch recipe: ${response.statusCode}');
       return null;
     }
   }
+
 
   Future<List<SpoonacularRecipe>> fetchRecipes({
     String? category,
