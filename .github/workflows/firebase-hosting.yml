@@ -1,0 +1,35 @@
+name: Deploy to Firebase Hosting on Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Install Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: "3.13.0"
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Flutter Web
+      run: flutter build web -t lib/frontend/web/main.dart
+
+    - name: Deploy to Firebase Hosting
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_DEPLOY_TOKEN }}
+      run: firebase deploy --only hosting
