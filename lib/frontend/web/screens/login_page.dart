@@ -1,4 +1,3 @@
-/*
 import 'package:flutter/material.dart';
 import 'admin_statistics_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,16 +42,6 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          "Login",
-          style: TextStyle(color: Colors.black),
-        ),
-        centerTitle: true,
-      ),
       body: Padding(
         padding: const EdgeInsets.all(200.0),
         child: Column(
@@ -87,4 +76,3 @@ class LoginPage extends StatelessWidget {
     );
   }
 }
-*/
