@@ -106,41 +106,37 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Future<void> _submitReport(String message) async {
-  try {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("You must be logged in to report.")),
+        );
+        return;
+      }
+
+      await Supabase.instance.client.from('product_report').insert({
+        'product_id': widget.product["id"],
+        'user_id': user.id,
+        'message': message,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+
+      await Supabase.instance.client.from('products').update({
+        'status': 'Reported',
+      }).eq('id', widget.product["id"]);
+      if (mounted){}
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You must be logged in to report.")),
+        const SnackBar(content: Text("Thank you for your report!")),
       );
-      return;
+
+      if (mounted) Navigator.of(context).maybePop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to submit report: $e")),
+      );
     }
-
-    // Insert the report
-    await Supabase.instance.client.from('product_report').insert({
-      'product_id': widget.product["id"],
-      'user_id': user.id,
-      'message': message,
-      'created_at': DateTime.now().toIso8601String(),
-    });
-
-    // Update product status to "Reported"
-    await Supabase.instance.client.from('products').update({
-      'status': 'Reported',
-    }).eq('id', widget.product["id"]);
-
-    // Notify and close screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Thank you for your report!")),
-    ); 
-
-    if (mounted) Navigator.of(context).maybePop(); // go back to product list
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Failed to submit report: $e")),
-    );
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -151,135 +147,139 @@ class ProductDetailsScreenState extends State<ProductDetailsScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: Column(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            height: 250,
-            child: Image.network(
-              widget.product["image"],
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  const Icon(Icons.image_not_supported, size: 100),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.product["name"] ?? "",
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Price: \$${(widget.product["price"] ?? 0).toStringAsFixed(2)}",
-                    style: const TextStyle(fontSize: 18, color: Colors.green),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Description",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    widget.product["description"] ?? "",
-                    style: const TextStyle(fontSize: 16, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "Add Quantity",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, size: 30),
-                        onPressed: _decreaseQuantity,
-                      ),
-                      Container(
-                        width: 50,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          color: Colors.grey[300],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 250,
+                child: Image.network(
+                  widget.product["image"],
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.image_not_supported, size: 100),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.product["name"] ?? "",
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Price: \$${(widget.product["price"] ?? 0).toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 18, color: Colors.green),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Description",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.product["description"] ?? "",
+                      style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Add Quantity",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, size: 30),
+                          onPressed: _decreaseQuantity,
                         ),
-                        child: Text(
-                          quantity.toString(),
-                          style: const TextStyle(fontSize: 20),
+                        Container(
+                          width: 50,
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.grey[300],
+                          ),
+                          child: Text(
+                            quantity.toString(),
+                            style: const TextStyle(fontSize: 20),
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline, size: 30),
-                        onPressed: _increaseQuantity,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => _showReportDialog(context),
-                      child: const Text(
-                        "Report this Product",
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        IconButton(
+                          icon: const Icon(Icons.add_circle_outline, size: 30),
+                          onPressed: _increaseQuantity,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => _showReportDialog(context),
+                        child: const Text(
+                          "Report this Product",
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20), // Extra space before bottom button
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SizedBox(
+        width: double.infinity,
+        height: 60,
+        child: ElevatedButton(
+          onPressed: _showSuccess ? null : _addToCart,
+          style: ButtonStyle(
+            backgroundColor: MaterialStateProperty.resolveWith<Color>(
+              (Set<MaterialState> states) {
+                if (_showSuccess) return Colors.green;
+                if (states.contains(MaterialState.disabled)) {
+                  return Colors.green.withOpacity(0.5);
+                }
+                return Colors.green;
+              },
+            ),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(0),
               ),
             ),
           ),
-          SizedBox(
-            width: double.infinity,
-            height: 60,
-            child: ElevatedButton(
-              onPressed: _showSuccess ? null : _addToCart,
-              style: ButtonStyle(
-                backgroundColor: MaterialStateProperty.resolveWith<Color>(
-                  (Set<MaterialState> states) {
-                    if (_showSuccess) return Colors.green;
-                    if (states.contains(MaterialState.disabled)) {
-                      return Colors.green.withOpacity(0.5);
-                    }
-                    return Colors.green;
-                  },
-                ),
-                shape: MaterialStateProperty.all<RoundedRectangleBorder>(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(0),
+          child: _isAdding
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
                   ),
-                ),
-              ),
-              child: _isAdding
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
+                )
+              : _showSuccess
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text("Added to Cart",
+                            style: TextStyle(color: Colors.white)),
+                      ],
                     )
-                  : _showSuccess
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.check, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text("Added to Cart",
-                                style: TextStyle(color: Colors.white)),
-                          ],
-                        )
-                      : const Text(
-                          "Add to Cart",
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-            ),
-          ),
-        ],
+                  : const Text(
+                      "Add to Cart",
+                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    ),
+        ),
       ),
     );
   }

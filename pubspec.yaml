@@ -32,15 +32,18 @@ dependencies:
     sdk: flutter
   http: ^1.1.0
   supabase_flutter: ^2.0.0
+  uuid: ^3.0.6 
   dropdown_search: ^5.0.6
   provider: ^6.1.0
-  flutter_stripe: ^10.1.0 # or the latest version
+  flutter_stripe: ^10.1.0
   collection: ^1.17.0
-  
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
+  flutter_rating_bar: ^4.0.1
+  mime_type: ^1.0.0
+  file_picker: ^10.1.3
+  flutter_dotenv: ^5.0.2
   cupertino_icons: ^1.0.8
+  google_mlkit_image_labeling: ^0.10.0
+  camera: ^0.10.5+3
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
   encrypt: ^5.0.3
@@ -49,11 +52,12 @@ dependencies:
   fl_chart: ^0.63.0
   syncfusion_flutter_charts: ^28.2.6
   percent_indicator: ^4.2.2
-
+  image: ^3.0.1
   flutter_riverpod: ^2.3.2  # For state management
   go_router: ^10.0.0  # For navigation
   flutter_svg: ^2.0.9  # For SVG icons
   google_fonts: ^6.1.0  # For custom fonts
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'biz_partner_dashboard.dart';
-import 'biz_products_screen.dart';
-import 'biz_profile_screen.dart';
 import 'biz_order_detail.dart';
 
 class BizOrdersScreen extends StatefulWidget {
@@ -17,7 +14,6 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
   List<Map<String, dynamic>> _orderHistory = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
-  int _selectedIndex = 2;
 
   @override
   void initState() {
@@ -53,25 +49,26 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
     });
   }
 
-  void _onItemTapped(int index) {
-    if (index != _selectedIndex) {
-      switch (index) {
-        case 0:
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const BizPartnerDashboard()));
-          break;
-        case 1:
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const BizProductsScreen()));
-          break;
-        case 2:
-          break;
-        case 3:
-          Navigator.pushReplacement(
-              context, MaterialPageRoute(builder: (_) => const BizProfileScreen()));
-          break;
-      }
-    }
+  Widget _buildBottomNavBar(BuildContext context) {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 2,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      onTap: (i) {
+        if (i == 2) return;
+        Navigator.pushReplacementNamed(
+          context,
+          ['/biz_recipes', '/biz_products', '/biz_orders', '/biz_profile'][i],
+        );
+      },
+      items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+            BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Products'),
+            BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Orders'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+    );
   }
 
   @override
@@ -185,18 +182,7 @@ class BizOrdersScreenState extends State<BizOrdersScreen> {
       ),
 
       /// Bottom Nav
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(icon: Icon(Icons.storefront), label: "Products"),
-          BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: "Orders"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
 }

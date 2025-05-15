@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../backend/state/signup_state.dart';
-import '../../../../backend/services/input_validation_service.dart';
+import '../../../../backend/signup/signup_state.dart';
+import '../../../../backend/signup/input_validation_service.dart';
 import '../../../../utils/date_picker.dart';
 import '../../../../utils/widget_utils.dart';
 
@@ -88,7 +88,7 @@ class SignupTargetState extends State<SignupTarget> {
               children: List.generate(
                 7,
                 (index) => Container(
-                  width: 40,
+                  width: 47,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(
@@ -308,7 +308,8 @@ class SignupTargetState extends State<SignupTarget> {
                     } else if (signupState.targetDate == null) {
                       setState(() => _targetDateError = 'Please select target date');
                     } else {
-                      Navigator.pushNamed(context, '/signup_detail');
+                     Navigator.pushNamed(context, '/user_signup_detail');
+
                     }
                   },
                   child: Text(

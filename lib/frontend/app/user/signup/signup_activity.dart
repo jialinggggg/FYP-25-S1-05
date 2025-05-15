@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../backend/state/signup_state.dart';
+import '../../../../backend/signup/signup_state.dart';
 
 class SignupActivity extends StatefulWidget {
   const SignupActivity({super.key});
@@ -36,7 +36,7 @@ class SignupActivityState extends State<SignupActivity> {
               children: List.generate(
                 7,
                 (index) => Container(
-                  width: 40,
+                  width: 47,
                   height: 5,
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   decoration: BoxDecoration(

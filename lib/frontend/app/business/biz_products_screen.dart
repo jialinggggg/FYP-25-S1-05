@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'biz_partner_dashboard.dart';
-import 'biz_profile_screen.dart';
-import 'biz_orders_screen.dart';
-import 'biz_product_details.dart';
 import 'add_product.dart';
+import 'biz_product_details.dart';
 import '../../../backend/services/product_service.dart'; // Import the backend service
 
 class BizProductsScreen extends StatefulWidget {
@@ -19,7 +16,6 @@ class BizProductsScreenState extends State<BizProductsScreen> {
   List<Map<String, dynamic>> products = [];
   List<Map<String, dynamic>> filteredProducts = [];
   final TextEditingController _searchController = TextEditingController();
-  int _selectedIndex = 1; // Default index for "Products" tab
 
   @override
   void initState() {
@@ -73,36 +69,27 @@ void _navigateToAddProduct() async {
     });
   }
 
-  /// **Bottom Navigation Logic**
-  void _onItemTapped(int index) {
-    if (index != _selectedIndex) {
-      setState(() {
-        _selectedIndex = index;
-      });
-
-      switch (index) {
-        case 0:
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BizPartnerDashboard()),
-          );
-          break;
-        case 1:
-          break; // Stay on Products screen
-        case 2:
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BizOrdersScreen()),
-          );
-          break;
-        case 3:
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const BizProfileScreen()),
-          );
-          break;
-      }
-    }
+  /// **Bottom Navigation Logic*
+  Widget _buildBottomNavBar(BuildContext context) {
+    return BottomNavigationBar(
+      type: BottomNavigationBarType.fixed,
+      currentIndex: 1,
+      selectedItemColor: Colors.green,
+      unselectedItemColor: Colors.grey,
+      onTap: (i) {
+        if (i == 1) return;
+        Navigator.pushReplacementNamed(
+          context,
+          ['/biz_recipes', '/biz_products', '/biz_orders', '/biz_profile'][i],
+        );
+      },
+      items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+            BottomNavigationBarItem(icon: Icon(Icons.storefront), label: 'Products'),
+            BottomNavigationBarItem(icon: Icon(Icons.local_shipping), label: 'Orders'),
+            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          ],
+    );
   }
 
   @override
@@ -234,22 +221,7 @@ void _navigateToAddProduct() async {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant), label: "Recipes"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.storefront), label: "Products"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.local_shipping), label: "Orders"),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
+      bottomNavigationBar: _buildBottomNavBar(context),
     );
   }
 }

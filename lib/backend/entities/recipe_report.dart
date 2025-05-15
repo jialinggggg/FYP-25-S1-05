@@ -5,6 +5,7 @@ class RecipeReport {
   final String type;
   final String comment;
   final String status;
+  final String? sourceType;
   final DateTime createdAt;
 
   RecipeReport({
@@ -13,7 +14,8 @@ class RecipeReport {
     required this.recipeId,
     required this.type,
     required this.comment,
-    required this.status,
+    this.status = 'pending',
+    this.sourceType,
     required this.createdAt,
   });
 
@@ -25,6 +27,7 @@ class RecipeReport {
       type: map['report_type'] as String,
       comment: map['comment'] as String,
       status: map['status'] as String,
+      sourceType: map['source_type'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
     );
   }
@@ -37,32 +40,8 @@ class RecipeReport {
       'report_type': type,
       'comment': comment,
       'status': status,
+      'source_type': sourceType,
       'created_at': createdAt.toUtc().toIso8601String(),
     };
-  }
-
-  RecipeReport copyWith({
-    String? reportId,
-    String? uid,
-    int? recipeId,
-    String? type,
-    String? comment,
-    String? status,
-    DateTime? createdAt,
-  }) {
-    return RecipeReport(
-      reportId: reportId ?? this.reportId,
-      uid: uid ?? this.uid,
-      recipeId: recipeId ?? this.recipeId,
-      type: type ?? this.type,
-      comment: comment ?? this.comment,
-      status: status ?? this.status,
-      createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'RecipeReport(reportId: $reportId, uid: $uid, recipeId: $recipeId, type: $type, comment: $comment, status: $status, createdAt: $createdAt)';
   }
 }

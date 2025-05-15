@@ -1,27 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:nutri_app/backend/controllers/report_recipe_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
-import '../../backend/state/signup_state.dart';
-import '../../backend/state/user_profile_state.dart';
-import '../../backend/state/recipe_state.dart';
-import '../../backend/repositories/auth_repository.dart';
-import '../../backend/repositories/account_repository.dart';
-import '../../backend/repositories/user_profiles_repository.dart';
-import '../../backend/repositories/user_medical_repository.dart';
-import '../../backend/repositories/user_goals_repository.dart';
-import '../../backend/repositories/user_measurements_repository.dart';
-import '../../backend/repositories/business_profiles_repository.dart';
-import '../../backend/repositories/recipe_repository.dart';
-import '../../backend/api/spoonacular_api_service.dart';
-import '../../backend/services/input_validation_service.dart';
-import '../../backend/services/signup_service.dart';
-import '../../backend/services/user_profile_service.dart';
-import '../../backend/services/add_recipe_service.dart';
-import '../../backend/services/edit_recipe_service.dart';
-import '../../backend/controller/add_recipe_controller.dart';
-import '../../backend/controller/edit_recipe_controller.dart';
+import 'package:nutri_app/backend/api/spoonacular_service.dart';
+import 'package:nutri_app/backend/api/nutridigm_service.dart';
+import 'package:nutri_app/backend/signup/nutri_signup_state.dart';
+import 'package:nutri_app/backend/signup/biz_signup_state.dart';
+import 'package:nutri_app/backend/signup/signup_state.dart';
+
+import 'package:nutri_app/backend/signup/input_validation_service.dart';
 
 import 'user/signup/signup_welcome.dart';
 import 'user/signup/signup_you.dart';
@@ -29,21 +18,44 @@ import 'user/signup/signup_med.dart';
 import 'user/signup/signup_target.dart';
 import 'user/signup/signup_goal.dart';
 import 'user/signup/signup_activity.dart';
-import 'user/signup/signup_detail.dart';
+import 'shared/signup_detail.dart';
 import 'shared/signup_type.dart';
 import 'shared/signup_result.dart';
 import 'shared/splash_screen.dart';
 import 'shared/login.dart';
 import 'user/profile/profile_screen.dart';
 import 'user/order/orders_screen.dart';
-import 'user/recipes/recipes_screen.dart';
-import 'user/recipes/recipe_detail_screen.dart';
-import 'user/recipes/add_recipe.dart';
 import 'user/meal/main_log_screen.dart';
-import 'user/report/dashboard_screen.dart';
-import 'user/profile/edit_profile.dart';
-import 'user/profile/edit_goals.dart';
+import 'user/report/main_report_screen.dart';
+import 'user/profile/edit_profile_screen.dart';
+import 'user/profile/edit_goals_screen.dart';
 import 'user/profile/edit_med.dart';
+import 'user/recipes/add_recipe_screen.dart';
+import 'user/recipes/main_recipe_screen.dart';
+import 'business/signup_biz_contact.dart';
+import 'business/biz_profile_screen.dart';
+import 'business/biz_products_screen.dart';
+import 'business/biz_orders_screen.dart';
+import 'shared/biz_main_dashboard.dart';
+import 'nutritionist/profile_nutri_screen.dart';
+
+import 'package:nutri_app/backend/controllers/view_daily_nutri_info_controller.dart';
+import 'package:nutri_app/backend/controllers/log_meal_controller.dart';
+import 'package:nutri_app/backend/controllers/search_recipe_by_name_controller.dart';
+import 'package:nutri_app/backend/controllers/log_daily_weight_controller.dart';
+import 'package:nutri_app/backend/controllers/view_encouragement_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_recipe_for_meal_log_controller.dart';
+import 'package:nutri_app/backend/controllers/add_recipe_controller.dart';
+import 'package:nutri_app/backend/controllers/recipe_filter_controller.dart';
+import 'package:nutri_app/backend/controllers/recipe_list_controller.dart';
+import 'package:nutri_app/backend/controllers/biz_recipe_list_controller.dart';
+import 'package:nutri_app/backend/controllers/recipe_search_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_user_profile_info_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_nutri_profile_controller.dart';
+import 'package:nutri_app/backend/controllers/biz_signup_controller.dart';
+import 'package:nutri_app/backend/controllers/nutritionist_signup_controller.dart';
+import 'package:nutri_app/backend/controllers/user_signup_controller.dart';
+import 'package:nutri_app/backend/controllers/fetch_biz_profile_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -77,67 +89,41 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final supabase = Supabase.instance.client;
-    final userProfilesRepo = UserProfilesRepository(supabase);
+    final spoonacularService = SpoonacularService();
+    final nutridigmService = NutridigmService();
 
     return MultiProvider(
       providers: [
-        // Auth and profile providers
-        ChangeNotifierProvider(create: (_) => SignupState()),
+        // Core repositories
+        Provider(create: (_) => spoonacularService),
+        Provider(create: (_) => nutridigmService),
         Provider(create: (_) => InputValidationService()),
-        Provider(create: (_) => AuthRepository(supabase)),
-        Provider(create: (_) => AccountRepository(supabase)),
-        Provider(create: (_) => userProfilesRepo),
-        Provider(create: (_) => UserMedicalRepository(supabase)),
-        Provider(create: (_) => UserGoalsRepository(supabase)),
-        Provider(create: (_) => UserMeasurementsRepository(supabase, userProfilesRepo)),
-        Provider(create: (_) => BusinessProfilesRepository(supabase)),
-
-        // Recipe-related providers
-        Provider(create: (_) => SpoonacularApiService()),
-        Provider(create: (_) => RecipeRepository(
-          supabase,
-          AccountRepository(supabase),
-          userProfilesRepo,
-          BusinessProfilesRepository(supabase),
-        )),
-        ChangeNotifierProvider(create: (_) => RecipeState()),
-        Provider(create: (context) => AddRecipeService(
-          context.read<RecipeRepository>(),
-          context.read<SpoonacularApiService>(),
-        )),
-        Provider(create: (context) => AddRecipeController(
-          context.read<AddRecipeService>(),
-          context.read<RecipeState>(),
-        )),
-        ChangeNotifierProvider(create: (_) => RecipeState()),
-        ProxyProvider<RecipeState, EditRecipeController>(
-          update: (_, state, __) => EditRecipeController(
-            EditRecipeService(
-              RecipeRepository(
-                supabase,
-                AccountRepository(supabase),
-                UserProfilesRepository(supabase),
-                BusinessProfilesRepository(supabase),
-              ),
-              SpoonacularApiService(),
-            ),
-            state,
-          ),
-        ),
+        
+        // Controllers (state management)
+        ChangeNotifierProvider(create: (_) => LogDailyWeightController(supabaseClient: supabase)),
+        ChangeNotifierProvider(create: (_) => ViewEncouragementController(supabaseClient: supabase)),
+        ChangeNotifierProvider(create: (_) => ViewDailyNutritionInfoController(supabaseClient: supabase)),
+        ChangeNotifierProvider(create: (_) => FetchRecipeForMealLogController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => SearchRecipeByNameController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => LogMealController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => RecipeListController(supabase, spoonacularService, nutridigmService)),
+        ChangeNotifierProvider(create: (_) => RecipeSearchController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => RecipeFilterController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => ReportRecipeController(supabase)),
+        ChangeNotifierProvider(create: (_) => AddRecipeController(supabase, spoonacularService)),
+        ChangeNotifierProvider(create: (_) => BusinessRecipeListController(supabase)),
+        ChangeNotifierProvider(create: (_) => FetchUserProfileInfoController(supabase)),
+        ChangeNotifierProvider(create: (_) => FetchNutritionistProfileInfoController(supabase)),
+        ChangeNotifierProvider(create: (_) => FetchBusinessProfileInfoController(supabase)),
+        
 
         // Services
-        Provider(create: (_) => SignupService(
-          authRepo: AuthRepository(supabase),
-          accountRepo: AccountRepository(supabase),
-          profileRepo: userProfilesRepo,
-          medicalRepo: UserMedicalRepository(supabase),
-          goalsRepo: UserGoalsRepository(supabase),
-          measurementsRepo: UserMeasurementsRepository(supabase, userProfilesRepo),
-        )),
-        Provider(create: (_) => UserProfileService(supabase)),
-        ChangeNotifierProvider(create: (context) => UserProfileState(
-          context.read<UserProfileService>(),
-        )),
+        Provider<SignupController>(create: (_) => SignupController(Supabase.instance.client),),
+        Provider<BizSignupController>(create: (_) => BizSignupController(Supabase.instance.client),),
+        Provider<NutritionistSignupController>(create: (_) => NutritionistSignupController(Supabase.instance.client),),
+        ChangeNotifierProvider(create: (_) => SignupState()),
+        ChangeNotifierProvider(create: (_) => BusinessSignupState()),
+        ChangeNotifierProvider(create: (_) => NutritionistSignupState()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -145,14 +131,18 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.green,
           visualDensity: VisualDensity.adaptivePlatformDensity,
+          appBarTheme: const AppBarTheme(
+            elevation: 0,
+            backgroundColor: Colors.white,
+            iconTheme: IconThemeData(color: Colors.green),
+          ),
         ),
         initialRoute: '/',
         routes: {
-          // Core app routes
           '/': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
 
-          // Signup flow
+          // Signup flow routes
           '/signup_type': (context) => const SignupType(),
           '/signup_welcome': (context) => const SignupWelcome(),
           '/signup_you': (context) => const SignupYou(),
@@ -160,36 +150,31 @@ class MyApp extends StatelessWidget {
           '/signup_goal': (context) => const SignupGoal(),
           '/signup_activity': (context) => const SignupActivity(),
           '/signup_target': (context) => const SignupTarget(),
-          '/signup_detail': (context) => const SignupDetail(),
+          '/user_signup_detail': (context) => const SignupDetail(type: "user"),
           '/signup_result': (context) => const SignupResult(type: "user"),
+          '/biz_signup_result': (context) => const SignupResult(type: "business"),
+          '/signup_biz_contact': (context) => const SignupBizContactScreen(),
+          '/biz_signup_detail': (context) => const SignupDetail(type: "business"),
+          '/nutri_signup_detail': (context) => const SignupDetail(type: "nutritionist"),
 
-          // Main features
+          // Main feature routes
           '/profile': (context) => const ProfileScreen(),
           '/orders': (context) => const OrdersScreen(),
-          '/recipes': (context) => const RecipesScreen(),
-          '/add_recipe': (context) => const AddRecipeScreen(),
           '/log': (context) => const MainLogScreen(),
-          '/dashboard': (context) => const MainReportDashboard(),
+          '/dashboard': (context) => const MainReportScreen(),
+          '/edit_profile': (context) => EditProfileScreen(onProfileUpdated: () {}),
+          '/edit_goals': (context) => EditGoalsScreen(onUpdate: () {}),
+          '/edit_med': (context) => EditMedicalHistScreen(onUpdate: () {}),
+          '/add_recipe': (context) => const AddRecipeScreen(),
+          '/main_recipes': (context) => const MainRecipeScreen(),
 
-          // Recipe detail with arguments
-          '/recipe_detail': (context) {
-            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-            return RecipeDetailScreen(
-              recipeId: args['recipeId'] as String,
-              isFromDatabase: args['isFromDatabase'] as bool,
-            );
-          },
-
-          // Profile editing
-          '/edit_profile': (context) => EditProfileScreen(
-            onProfileUpdated: () {},
-          ),
-          '/edit_goals': (context) => EditGoalsScreen(
-            onUpdate: () {},
-          ),
-          '/edit_med': (context) => EditMedicalHistoryScreen(
-            onUpdate: () {},
-          ),
+          // business
+          '/biz_recipes': (context) => const BizPartnerDashboard(),
+          '/biz_products':(context) => const BizProductsScreen(),
+          '/biz_orders': (context) => const BizOrdersScreen(),
+          '/biz_profile': (context) => const BusinessProfileScreen(),
+          '/nutri_profile': (context) => const NutritionistProfileScreen(),
+          
         },
       ),
     );

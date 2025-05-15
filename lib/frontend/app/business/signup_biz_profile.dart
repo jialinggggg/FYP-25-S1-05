@@ -1,402 +1,342 @@
-import 'package:flutter/material.dart';
-import 'package:dropdown_search/dropdown_search.dart';
-import '../../../../services/country_service.dart';
-import '../../../utils/input_validator.dart';
-import '../../../../utils/dialog_utils.dart';
-import '../../../utils/widget_utils.dart';
-import 'signup_biz_detail.dart'; // Assuming this is the next screen
+// lib/frontend/app/business/signup/signup_biz_profile.dart
 
-class SignupBizProfile extends StatefulWidget {
-  const SignupBizProfile({super.key});
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+import 'package:file_picker/file_picker.dart';
+
+import '../../../services/country_service.dart';
+import '../../../backend/signup/biz_signup_state.dart';
+import '../../../utils/dialog_utils.dart';
+
+class SignupBizProfileScreen extends StatefulWidget {
+  const SignupBizProfileScreen({super.key});
 
   @override
-  SignupBizProfileState createState() => SignupBizProfileState();
+  SignupBizProfileScreenState createState() => SignupBizProfileScreenState();
 }
 
-class SignupBizProfileState extends State<SignupBizProfile> {
-  // User input controllers
+class SignupBizProfileScreenState extends State<SignupBizProfileScreen> {
   final CountryService _countryService = CountryService();
-  final TextEditingController _businessNameController = TextEditingController();
-  final TextEditingController _businessRegNoController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _servicesDescriptionController = TextEditingController();
-  String? _selectedCountry;
-  String? _selectedServiceType; // Added for service type dropdown
-  List<String> countries = [];
 
-  // Service type options
-  final List<String> serviceTypes = [
-    "Dietitians & Nutritionists",
-    "Food & Meal Providers",
-  ];
+  // Controllers
+  final _businessNameController   = TextEditingController();
+  final _registrationNoController = TextEditingController();
+  final _addressController        = TextEditingController();
+  final _descriptionController    = TextEditingController();
+  final _websiteController        = TextEditingController();
 
-  // Validation error states
+  List<String> _countries = [];
   bool _isLoading = true;
-  bool _businessNameError = false;
-  bool _businessRegNoError = false;
-  bool _serviceTypeError = false;
-  bool _countryError = false;
-  bool _addressError = false;
-  bool _servicesDescriptionError = false;
+
+  // Validation errors
+  String? _businessNameError;
+  String? _registrationNoError;
+  String? _countryError;
+  String? _addressError;
+  String? _descriptionError;
+  String? _documentsError;
+
+  List<File> _registrationDocuments = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchCountries(); // Load country list
+    _fetchCountries();
+
+    final state = context.read<BusinessSignupState>();
     _businessNameController.addListener(() {
       if (_businessNameController.text.isNotEmpty) {
-        setState(() => _businessNameError = false);
+        setState(() => _businessNameError = null);
       }
+      state.setBusinessName(_businessNameController.text);
     });
-    _businessRegNoController.addListener(() {
-      if (_businessRegNoController.text.isNotEmpty) {
-        setState(() => _businessRegNoError = false);
+    _registrationNoController.addListener(() {
+      if (_registrationNoController.text.isNotEmpty) {
+        setState(() => _registrationNoError = null);
       }
+      state.setRegistrationNo(_registrationNoController.text);
     });
     _addressController.addListener(() {
       if (_addressController.text.isNotEmpty) {
-        setState(() => _addressError = false);
+        setState(() => _addressError = null);
       }
+      state.setBusinessAddress(_addressController.text);
     });
-    _servicesDescriptionController.addListener(() {
-      if (_servicesDescriptionController.text.isNotEmpty) {
-        setState(() => _servicesDescriptionError = false);
+    _descriptionController.addListener(() {
+      if (_descriptionController.text.isNotEmpty) {
+        setState(() => _descriptionError = null);
       }
+      state.setBusinessDescription(_descriptionController.text);
+    });
+    _websiteController.addListener(() {
+      state.setWebsite(_websiteController.text);
     });
   }
 
-  @override
-  void dispose() {
-    _businessNameController.dispose();
-    _businessRegNoController.dispose();
-    _addressController.dispose();
-    _servicesDescriptionController.dispose();
-    super.dispose();
-  }
-
-  // Fetch list of countries from service
   Future<void> _fetchCountries() async {
     try {
-      final countryNames = await _countryService.fetchCountries();
-      if (mounted) {
-        setState(() {
-          countries = countryNames;
-          _isLoading = false;
-        });
-      }
+      final list = await _countryService.fetchCountries();
+      if (!mounted) return;
+      setState(() {
+        _countries = list;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        DialogUtils.showErrorDialog(
-          context: context,
-          message: 'Error fetching countries: $e',
-        );
-      }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      DialogUtils.showErrorDialog(
+        context: context,
+        message: 'Error fetching countries: $e',
+      );
     }
   }
 
-  // Validate user inputs
-  bool _validateInputs() {
-    bool isValid = true;
-
-    isValid &= InputValidator.validateField(
-      _businessNameController.text,
-      (error) => setState(() => _businessNameError = error),
-      "Please enter your business name",
+  Future<void> _pickDocuments() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
     );
+    if (!mounted) return;
+    if (result != null) {
+      final files = result.paths
+          .whereType<String>()
+          .map((path) => File(path))
+          .toList();
+      setState(() {
+        _registrationDocuments = files;
+        _documentsError = null;
+      });
+      context.read<BusinessSignupState>().setRegistrationDocs(files);
+    }
+  }
 
-    isValid &= InputValidator.validateField(
-      _businessRegNoController.text,
-      (error) => setState(() => _businessRegNoError = error),
-      "Please enter your business registration number",
-    );
+  void _validateAndNext() {
+    final state = context.read<BusinessSignupState>();
+    setState(() {
+      _businessNameError   = state.businessName.isEmpty         ? 'Please enter business name' : null;
+      _registrationNoError = state.registrationNo.isEmpty       ? 'Please enter registration number' : null;
+      _countryError        = state.businessCountry.isEmpty      ? 'Please select country' : null;
+      _addressError        = state.businessAddress.isEmpty      ? 'Please enter address' : null;
+      _descriptionError    = state.businessDescription.isEmpty  ? 'Please enter a description' : null;
+      _documentsError      = _registrationDocuments.isEmpty      ? 'Please upload registration documents' : null;
+    });
 
-    isValid &= InputValidator.validateField(
-      _selectedServiceType,
-      (error) => setState(() => _serviceTypeError = error),
-      "Please select the type of services provided",
-    );
-
-    isValid &= InputValidator.validateField(
-      _selectedCountry,
-      (error) => setState(() => _countryError = error),
-      "Please select your country",
-    );
-
-    isValid &= InputValidator.validateField(
-      _addressController.text,
-      (error) => setState(() => _addressError = error),
-      "Please enter your business address",
-    );
-
-    isValid &= InputValidator.validateField(
-      _servicesDescriptionController.text,
-      (error) => setState(() => _servicesDescriptionError = error),
-      "Please provide a brief description of your services",
-    );
-
-    return isValid;
+    if ([
+      _businessNameError,
+      _registrationNoError,
+      _countryError,
+      _addressError,
+      _descriptionError,
+      _documentsError
+    ].every((e) => e == null)) {
+      Navigator.pushNamed(context, '/signup_biz_contact');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<BusinessSignupState>();
+
     return Scaffold(
-      body: Stack(
-        children: [
-          // Scrollable Content
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Page Title
-                Center(
-                  child: Text(
-                    "Business Registration",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Progress indicator
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    2,
-                    (index) => Container(
-                      width: 179,
-                      height: 5,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        color: index == 0 ? Colors.green : Colors.black,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Section title
-                Text(
-                  "Tell us about your business!",
-                  style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-
-                // Business Name Field
-                Text(
-                  "Business Name",
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
+        child: SingleChildScrollView(
+          physics: BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  "Business Sign Up",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _businessNameController,
-                  decoration: InputDecoration(
-                      hintText: "Enter your business name",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                ),
-                if (_businessNameError)
-                  WidgetUtils.buildErrorMessage("Please enter your business name"),
-                const SizedBox(height: 20),
-
-                // Business Registration No. Field
-                Text(
-                  "Business Registration No.",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _businessRegNoController,
-                  decoration: InputDecoration(
-                      hintText: "Enter your business registration number",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                ),
-                if (_businessRegNoError)
-                  WidgetUtils.buildErrorMessage("Please enter your business registration number"),
-                const SizedBox(height: 20),
-
-                // Country Selection Dropdown
-                Text(
-                  "Country",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator()) // Show loading spinner
-                    : Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownSearch<String>(
-                          popupProps: PopupProps.menu(
-                            showSearchBox: true,
-                            searchFieldProps: TextFieldProps(
-                              decoration: InputDecoration(
-                                hintText: "Search for a country",
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          items: countries,
-                          dropdownDecoratorProps: DropDownDecoratorProps(
-                            dropdownSearchDecoration: InputDecoration(
-                              hintText: "Select your country",
-                              border: InputBorder.none,
-                            ),
-                          ),
-                          onChanged: (String? newValue) {
-                            setState(() {
-                              _selectedCountry = newValue;
-                              _countryError = false;
-                            });
-                          },
-                          selectedItem: _selectedCountry,
-                        ),
-                      ),
-                if (_countryError)
-                  WidgetUtils.buildErrorMessage("Please select your country"),
-                const SizedBox(height: 20),
-
-                // Business Address Field
-                Text(
-                  "Business Address",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _addressController,
-                  decoration: InputDecoration(
-                      hintText: "Enter your business address",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                ),
-                if (_addressError)
-                  WidgetUtils.buildErrorMessage("Please enter your business address"),
-                const SizedBox(height: 20),
-
-                // Type of Services Provided Dropdown
-                Text(
-                  "Type of Services Provided",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedServiceType,
-                    items: serviceTypes.map((String type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(type),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedServiceType = newValue;
-                        _serviceTypeError = false;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      hintText: "Select the type of services provided",
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                    ),
-                    isExpanded: true, // Ensures the dropdown takes full width
-                  ),
-                ),
-                if (_serviceTypeError)
-                  WidgetUtils.buildErrorMessage("Please select the type of services provided"),
-                const SizedBox(height: 20),
-
-                // Brief Description of Services Field
-                Text(
-                  "Brief Description of Services",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _servicesDescriptionController,
-                  decoration: InputDecoration(
-                      hintText: "Enter a brief description of your services",
-                      contentPadding: EdgeInsets.symmetric(horizontal: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  maxLines: 3, // Allow multiple lines for description
-                ),
-                if (_servicesDescriptionError)
-                  WidgetUtils.buildErrorMessage("Please provide a brief description of your services"),
-                const SizedBox(height: 100), // Extra space for scrolling
-              ],
-            ),
-          ),
-
-          // Fixed Buttons at the Bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              color: Colors.white, // Background color for the button area
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.arrow_back, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(horizontal: 135, vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                    ),
-                    onPressed: () {
-                      if (!_validateInputs()) return; // Stop if inputs are invalid
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SignupBizDetail(
-                            name: _businessNameController.text,
-                            registration: _businessRegNoController.text,
-                            country: _selectedCountry!,
-                            address: _addressController.text,
-                            type: _selectedServiceType!,
-                            description: _servicesDescriptionController.text,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      "Next",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                  ),
-                ],
               ),
-            ),
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (i) => Container(
+                  width: 116,
+                  height: 5,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: i == 0 ? Colors.green : Colors.black,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                )),
+              ),
+              const SizedBox(height: 30),
+
+              Text(
+                "Tell us about your business",
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 15),
+
+              _buildTextField(
+                controller: _businessNameController,
+                label: "Business Name",
+                hint: "Enter business name",
+                errorText: _businessNameError,
+              ),
+              _buildTextField(
+                controller: _registrationNoController,
+                label: "Registration No.",
+                hint: "Enter registration number",
+                errorText: _registrationNoError,
+              ),
+              Text("Country of Operation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              _isLoading
+                  ? Center(child: CircularProgressIndicator())
+                  : Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: DropdownSearch<String>(
+                        popupProps: PopupProps.menu(
+                          showSearchBox: true,
+                          searchFieldProps: TextFieldProps(
+                            decoration: InputDecoration(
+                              hintText: "Search country",
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        items: _countries,
+                        dropdownDecoratorProps: DropDownDecoratorProps(
+                          dropdownSearchDecoration: InputDecoration(
+                            hintText: "Select country",
+                            contentPadding: EdgeInsets.symmetric(horizontal: 10),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                        selectedItem: state.businessCountry.isEmpty
+                            ? null
+                            : state.businessCountry,
+                        onChanged: (val) {
+                          if (val != null) {
+                            state.setBusinessCountry(val);
+                            setState(() => _countryError = null);
+                          }
+                        },
+                      ),
+                    ),
+              if (_countryError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(_countryError!, style: TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+              const SizedBox(height: 20),
+              _buildTextField(
+                controller: _addressController,
+                label: "Business Address",
+                hint: "Enter address",
+                errorText: _addressError,
+              ),
+              _buildTextField(
+                controller: _descriptionController,
+                label: "Business Description",
+                hint: "Describe your business",
+                errorText: _descriptionError,
+              ),
+              _buildTextField(
+                controller: _websiteController,
+                label: "Website / Social Media (Optional)",
+                hint: "Enter URL(s)",
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 20),
+              Text("Upload Registration Documents", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: Icon(Icons.attach_file, color: Colors.green),
+                  label: Text(
+                    "Choose Files",
+                    style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _pickDocuments,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              for (var f in _registrationDocuments)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(f.path.split('/').last),
+                ),
+              if (_documentsError != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(_documentsError!, style: TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+              const SizedBox(height:10), // Spacer to avoid hiding fields under buttons
+            ],
           ),
-        ],
+        ),
       ),
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: Icon(Icons.arrow_back, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              onPressed: _validateAndNext,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(horizontal: 135, vertical: 15),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+              ),
+              child: Text("Next", style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hint,
+            contentPadding: EdgeInsets.symmetric(horizontal: 10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(errorText, style: TextStyle(color: Colors.red, fontSize: 12)),
+          ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 }

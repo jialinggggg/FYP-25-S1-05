@@ -3,10 +3,9 @@ import 'package:nutri_app/backend/services/cart_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
-import 'checkout.dart'; // Import the CheckoutScreen correctly
-
-
+import 'checkout.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -33,7 +32,7 @@ class _CartScreenState extends State<CartScreen> {
     try {
       setState(() => _isLoading = true);
       final items = await CartService.getCartItems();
-      
+
       debugPrint('[CART] Fetched ${items.length} items');
       if (items.isNotEmpty) {
         debugPrint('[CART] First item: ${items.first}');
@@ -74,14 +73,11 @@ class _CartScreenState extends State<CartScreen> {
 
     try {
       setState(() => _isLoading = true);
-      
+
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
-      
-      await _supabase
-          .from('carts')
-          .delete()
-          .eq('user_id', userId);
+
+      await _supabase.from('carts').delete().eq('user_id', userId);
 
       setState(() {
         _cartItems = [];
@@ -99,12 +95,25 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
+  ImageProvider _resolveImageProvider(String imagePath) {
+    if (imagePath.startsWith('http')) {
+      return NetworkImage(imagePath);
+    } else if (imagePath.startsWith('/')) {
+      return FileImage(File(imagePath));
+    } else {
+      return NetworkImage(_supabase.storage
+          .from('product-image')
+          .getPublicUrl(imagePath));
+    }
+  }
+
   Widget _buildCartItem(Map<String, dynamic> item) {
     final product = item['products'] as Map<String, dynamic>? ?? {};
     final name = product['name']?.toString() ?? 'Unnamed Product';
     final price = (product['price'] as num?)?.toDouble() ?? 0.0;
     final quantity = (item['quantity'] as int?) ?? 1;
     final cartItemId = item['id']?.toString() ?? '';
+    final imagePath = product['image']?.toString();
 
     return Card(
       margin: const EdgeInsets.all(8),
@@ -112,9 +121,9 @@ class _CartScreenState extends State<CartScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: Colors.grey[200],
-          child: product['image'] != null 
-              ? Image.asset(product['image'].toString())
-              : const Icon(Icons.shopping_cart),
+          backgroundImage:
+              imagePath != null ? _resolveImageProvider(imagePath) : null,
+          child: imagePath == null ? const Icon(Icons.shopping_cart) : null,
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('\$${price.toStringAsFixed(2)}'),
@@ -157,98 +166,81 @@ class _CartScreenState extends State<CartScreen> {
   double _calculateTotal() {
     return _cartItems.fold(0, (total, item) {
       final quantity = (item['quantity'] as int?) ?? 0;
-      final price = ((item['products'] as Map)['price'] as num?)?.toDouble() ?? 0.0;
+      final price =
+          ((item['products'] as Map)['price'] as num?)?.toDouble() ?? 0.0;
       return total + (quantity * price);
     });
   }
 
   Future<void> _handleCheckout() async {
-  try {
-    setState(() => _isLoading = true);
-    
-    // Get the current session
-    final session = _supabase.auth.currentSession;
-    if (session == null) {
-      throw Exception('User not authenticated');
-    }
-
-    // Prepare simplified cart for checkout
-    final Map<String, int> simplifiedCart = {
-      for (var item in _cartItems)
-        item['products']['name']: item['quantity'] as int,
-    };
-
-    // Create payment intent with auth header
-    debugPrint('[CHECKOUT] Creating payment intent...');
-    final response = await http.post(
-      Uri.parse('https://mmyzsijycjxdkxglrxxl.supabase.co/functions/v1/create-payment-intent'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${session.accessToken}', // Add this line
-      },
-      body: jsonEncode({'amount': (_calculateTotal() * 100).toInt()}),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to create payment intent: ${response.body}');
-    }
-
-    final data = jsonDecode(response.body);
-    final clientSecret = data['clientSecret'];
-    debugPrint('[CHECKOUT] Payment intent created');
-
-    // Initialize Payment Sheet
-    debugPrint('[CHECKOUT] Initializing payment sheet...');
-    await Stripe.instance.initPaymentSheet(
-      paymentSheetParameters: SetupPaymentSheetParameters(
-        paymentIntentClientSecret: clientSecret,
-        merchantDisplayName: 'NutriApp',
-        style: ThemeMode.light,
-        customFlow: false,
-      ),
-    );
-
-    // Present Payment Sheet
-    debugPrint('[CHECKOUT] Presenting payment sheet...');
     try {
-      await Stripe.instance.presentPaymentSheet();
-      debugPrint('[CHECKOUT] Payment successful!');
-      
-      // Payment successful - navigate to CheckoutScreen
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CheckoutScreen(
-            cart: simplifiedCart,
-            orderId: "O${DateTime.now().millisecondsSinceEpoch}",
-            totalAmount: _calculateTotal(),
-          ),
+      setState(() => _isLoading = true);
+
+      final session = _supabase.auth.currentSession;
+      if (session == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final Map<String, int> simplifiedCart = {
+        for (var item in _cartItems)
+          item['products']['name']: item['quantity'] as int,
+      };
+
+      final response = await http.post(
+        Uri.parse(
+            'https://mmyzsijycjxdkxglrxxl.supabase.co/functions/v1/create-payment-intent'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({'amount': (_calculateTotal() * 100).toInt()}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to create payment intent: ${response.body}');
+      }
+
+      final data = jsonDecode(response.body);
+      final clientSecret = data['clientSecret'];
+
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: clientSecret,
+          merchantDisplayName: 'NutriApp',
+          style: ThemeMode.light,
+          customFlow: false,
         ),
       );
-    } on StripeException catch (e) {
-      debugPrint('[CHECKOUT] StripeException: ${e.error.localizedMessage}');
-      throw Exception('Payment failed: ${e.error.localizedMessage}');
+
+      try {
+        await Stripe.instance.presentPaymentSheet();
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CheckoutScreen(
+              cart: simplifiedCart,
+              orderId: "O${DateTime.now().millisecondsSinceEpoch}",
+              totalAmount: _calculateTotal(),
+            ),
+          ),
+        );
+      } on StripeException catch (e) {
+        throw Exception('Payment failed: ${e.error.localizedMessage}');
+      } catch (e) {
+        throw Exception('Payment failed: $e');
+      }
     } catch (e) {
-      debugPrint('[CHECKOUT] Payment sheet error: $e');
-      throw Exception('Payment failed: $e');
-    }
-  } catch (e) {
-    debugPrint('[CHECKOUT] Error: $e');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error during checkout: ${e.toString()}")),
-    );
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error during checkout: ${e.toString()}")),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +272,7 @@ class _CartScreenState extends State<CartScreen> {
                         child: ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: _cartItems.length,
-                          itemBuilder: (context, index) => 
+                          itemBuilder: (context, index) =>
                               _buildCartItem(_cartItems[index]),
                         ),
                       ),
@@ -301,7 +293,7 @@ class _CartScreenState extends State<CartScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text("TOTAL:", 
+                                const Text("TOTAL:",
                                     style: TextStyle(fontSize: 18)),
                                 Text(
                                   "\$${_calculateTotal().toStringAsFixed(2)}",
@@ -321,21 +313,27 @@ class _CartScreenState extends State<CartScreen> {
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.red,
                                       side: const BorderSide(color: Colors.red),
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
                                     ),
                                     onPressed: _resetCart,
                                     child: const Text("RESET CART"),
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                Expanded(child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,padding: const EdgeInsets.symmetric(vertical: 16),),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                    ),
                                     onPressed: _handleCheckout,
                                     child: const Text(
-                                      "CHECKOUT",style: TextStyle(color: Colors.white), // <-- Make text white
+                                      "CHECKOUT",
+                                      style: TextStyle(color: Colors.white),
                                     ),
-                                   ),
+                                  ),
                                 ),
                               ],
                             ),
