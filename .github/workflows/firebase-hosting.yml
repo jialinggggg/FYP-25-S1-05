@@ -18,10 +18,13 @@ jobs:
       with:
         node-version: 18
 
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
+
     - name: Install Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: "3.13.0"
+        flutter-version: "3.32.0"
 
     - name: Install dependencies
       run: flutter pub get
